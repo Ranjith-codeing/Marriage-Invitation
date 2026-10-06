@@ -46,7 +46,16 @@ async function boot() {
   initNav({ reducedMotion });
   initGallery();
   initCountdown();
-  const music = initMusic();
+  // Which story scene is on screen (the score follows it)
+  const sceneEls = [...document.querySelectorAll('[data-scene]')];
+  const getScene = () => {
+    if (document.body.classList.contains('is-loading')) return 'hero';
+    const mid = innerHeight / 2;
+    let name = 'hero';
+    for (const el of sceneEls) if (el.getBoundingClientRect().top <= mid) name = el.dataset.scene;
+    return name;
+  };
+  const music = initMusic({ getScene });
 
   const fontsReady = document.fonts?.ready.catch(() => {}) ?? Promise.resolve();
   let experience = null;

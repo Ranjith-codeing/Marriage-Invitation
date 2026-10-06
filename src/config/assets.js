@@ -54,9 +54,16 @@ export const couplePhoto = {
   flowers: 'border',
 };
 
+/**
+ * Background music. The built-in score (src/audio/score.js) is always
+ * available; drop your own track at public/audio/wedding-music.mp3 and guests
+ * can switch between "Score" and "Song". `default` picks what plays first.
+ */
 export const audio = {
   music: 'audio/wedding-music.mp3',
-  volume: 0.55,
+  volume: 0.55, // song volume
+  scoreVolume: 0.75, // built-in score volume
+  default: 'score', // 'score' | 'song' (song only if the file exists)
 };
 
 /** Portrait for the "Our Story" section (shown only if the file exists). */

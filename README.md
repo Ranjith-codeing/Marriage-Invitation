@@ -59,7 +59,7 @@ public/
 │   ├── groom.glb                ← optional 3D models (see public/models/README.md)
 │   └── bride.glb
 ├── audio/
-│   └── wedding-music.mp3        ← optional background music
+│   └── wedding-music.mp3        ← optional song (the built-in score plays otherwise)
 reference-photos/                ← private originals (git-ignored, never published)
 ```
 
@@ -110,7 +110,14 @@ These models need a separate 3D step: an image-to-3D tool or a 3D artist, plus r
 
 ## Music
 
-Put an MP3 at `public/audio/wedding-music.mp3`. Guests then get **"Open the invitation ♫"** or **"Enter without music"**, plus a Music / Pause button. Nothing ever autoplays with sound, and the choice is remembered for the session. Without the file, all music controls hide themselves.
+The site has an original **background score**, composed and synthesised live in the browser ([`src/audio/score.js`](src/audio/score.js)), so there are no audio files to download and no licensing concerns. It's in raga Kalyani, the auspicious raga associated with weddings, with tonic Sa = D:
+
+- **Tanpura** drone (plucked Pa–Sa–Sa–Sa strings), **santoor/veena** melodies with gamaka slides, a **bansuri** flute carrying the love theme, warm **strings**, **temple bells** and a soft **mridangam** pulse, all in a concert-hall reverb.
+- **It follows the film:** quiet and mysterious in the prologue, plucked melodies in the garden, bells and drums at the mandapam, the full flute theme at "A new chapter begins…", softer while guests read the details, and a warm night finale. The per-scene mix is the `SCENE_MIX` table in `score.js`.
+
+**Your own song (optional):** add `public/audio/wedding-music.mp3`, and the music control shows a **Score / Song** switch (`audio.default` in `src/config/assets.js` picks which plays first). Only publish music you have the rights to.
+
+Nothing ever autoplays with sound. Music starts from **Open the invitation ♫** or the **Music** button, and the choice is remembered for the session.
 
 ---
 
@@ -143,6 +150,7 @@ src/
 │   ├── wedding.js           ALL wedding content (names, dates, venues, story, copy)
 │   └── assets.js            asset paths, model/photo/music settings
 ├── data/                    public-asset manifest helpers, gallery captions
+├── audio/score.js           the generative background score (Web Audio)
 ├── components/              DOM: content renderer, loader, nav, guided auto-play, music, gallery, countdown + calendar, cursor glow
 ├── animations/
 │   ├── scrollTimeline.js    scroll position → continuous "film time"

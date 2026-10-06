@@ -268,6 +268,7 @@ function controls() {
       <span class="control__glyph" aria-hidden="true"></span>
       <span class="control__label" data-autoplay-label>Play story</span>
     </button>
+    <button type="button" class="control control--source" data-music-source hidden>Score</button>
     <button type="button" class="control control--music" data-music hidden aria-pressed="false">
       <span class="control__icon" aria-hidden="true"><i></i><i></i><i></i></span>
       <span class="control__label" data-music-label>Music</span>

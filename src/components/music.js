@@ -1,31 +1,39 @@
 import { audio as audioConfig, assetUrl } from '../config/assets.js';
 import { available } from '../data/publicAssets.js';
+import { WeddingScore } from '../audio/score.js';
 
 const KEY = 'wedding-music';
 
 /**
- * Optional background music. Never autoplays with sound: it starts only from
- * a click (the "Open the invitation ♫" button or the ♫ Music control), and
- * the on/off choice is remembered for the browser session.
+ * Background music with two sources:
+ *   score — the built-in cinematic score that follows the film (always available)
+ *   song  — your own track at public/audio/wedding-music.mp3 (optional)
+ * Nothing ever autoplays with sound: music starts only from a click, and the
+ * on/off + source choice is remembered for the browser session.
  */
-export function initMusic() {
+export function initMusic({ getScene }) {
   const button = document.querySelector('[data-music]');
   const label = button.querySelector('[data-music-label]');
-  if (!available.music) return { available: false, play() {}, preferred: false };
+  const sourceButton = document.querySelector('[data-music-source]');
+  const hasSong = available.music;
+  const score = new WeddingScore({ getScene, volume: audioConfig.scoreVolume });
 
-  let audio;
-  const getAudio = () => {
-    if (!audio) {
-      audio = new Audio(assetUrl(audioConfig.music));
-      audio.loop = true;
-      audio.preload = 'auto';
-      audio.volume = 0;
+  const saved = sessionStorage.getItem(`${KEY}-source`);
+  let source = hasSong && (saved || audioConfig.default) === 'song' ? 'song' : 'score';
+  let playing = false;
+  let song;
+
+  const songElement = () => {
+    if (!song) {
+      song = new Audio(assetUrl(audioConfig.music));
+      song.loop = true;
+      song.preload = 'auto';
+      song.volume = 0;
     }
-    return audio;
+    return song;
   };
-
-  const fade = (to, ms = 1200) => {
-    const a = getAudio();
+  const fadeSong = (to, ms) => {
+    const a = songElement();
     const from = a.volume;
     const start = performance.now();
     const step = (now) => {
@@ -37,35 +45,69 @@ export function initMusic() {
     requestAnimationFrame(step);
   };
 
-  const setUI = (playing) => {
+  const startSource = async (src) => {
+    if (src === 'score') await score.start();
+    else {
+      await songElement().play();
+      fadeSong(audioConfig.volume, 1200);
+    }
+  };
+  const stopSource = (src) => {
+    if (src === 'score') score.stop();
+    else if (song) fadeSong(0, 700);
+  };
+
+  const setUI = () => {
     button.setAttribute('aria-pressed', String(playing));
     button.classList.toggle('is-playing', playing);
     label.textContent = playing ? 'Pause' : 'Music';
-    button.setAttribute('aria-label', playing ? 'Pause music' : 'Play music');
+    button.setAttribute('aria-label', playing ? 'Pause music' : `Play ${source === 'song' ? 'our song' : 'the background score'}`);
+    if (sourceButton) {
+      sourceButton.hidden = !hasSong;
+      sourceButton.textContent = source === 'song' ? 'Song' : 'Score';
+      sourceButton.setAttribute('aria-label', `Playing ${source === 'song' ? 'our song' : 'the background score'} — switch to ${source === 'song' ? 'the background score' : 'our song'}`);
+    }
   };
 
   const play = async () => {
     try {
-      await getAudio().play();
-      fade(audioConfig.volume);
-      setUI(true);
+      await startSource(source);
+      playing = true;
       sessionStorage.setItem(KEY, 'on');
     } catch {
-      setUI(false); // blocked or file failed — stay quiet
+      playing = false; // blocked by the browser or the file failed — stay quiet
     }
+    setUI();
   };
   const pause = () => {
-    fade(0, 700);
-    setUI(false);
+    stopSource(source);
+    playing = false;
     sessionStorage.setItem(KEY, 'off');
+    setUI();
+  };
+  const switchSource = async () => {
+    const next = source === 'song' ? 'score' : 'song';
+    if (playing) {
+      stopSource(source);
+      source = next;
+      try {
+        await startSource(next);
+      } catch {
+        playing = false;
+      }
+    } else source = next;
+    sessionStorage.setItem(`${KEY}-source`, source);
+    setUI();
   };
 
   button.hidden = false;
-  setUI(false);
-  button.addEventListener('click', () => (button.getAttribute('aria-pressed') === 'true' ? pause() : play()));
+  setUI();
+  button.addEventListener('click', () => (playing ? pause() : play()));
+  sourceButton?.addEventListener('click', switchSource);
   document.addEventListener('visibilitychange', () => {
-    if (!audio || button.getAttribute('aria-pressed') !== 'true') return;
-    document.hidden ? audio.pause() : audio.play().catch(() => {});
+    if (!playing) return;
+    if (source === 'score') score.setHidden(document.hidden);
+    else if (song) document.hidden ? song.pause() : song.play().catch(() => {});
   });
 
   return { available: true, play, preferred: sessionStorage.getItem(KEY) === 'on' };
