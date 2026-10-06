@@ -6,8 +6,10 @@ A cinematic, scroll-driven 3D wedding invitation. As the guest scrolls, the came
 
 It's a fully static site (Vite + Three.js + GSAP), so it runs on GitHub Pages with no server.
 
-- **Reception:** Saturday, 21 November 2026, Sukra Mahal
-- **Wedding:** Sunday, 22 November 2026, Kalyana Vinayagar Kovil
+- **Reception:** Saturday, 21 November 2026, 6:00 – 9:00 PM · Sukra Mahal, Pollachi
+- **Wedding (Muhurtham):** Sunday, 22 November 2026, 6:00 – 7:30 AM · Arulmigu Sri Kalyana Vinayagar Kovil, Pollachi
+
+Clicking **Enter Our Story** plays the whole film automatically, from the first scene to the last (see *Guided story*).
 
 ---
 
@@ -31,14 +33,15 @@ Requires Node.js 18+ (20 recommended).
 | What | Where |
 |---|---|
 | Names, dates, times, venues, addresses | `weddingDetails` |
-| Countdown / "Add to calendar" | `weddingDetails.weddingDateISO`: `'2026-11-22'` (all-day) or `'2026-11-22T06:00:00+05:30'` (exact muhurtham) |
+| Google Maps links + exact pins | `weddingMapUrl` / `receptionMapUrl` and `weddingLocation` / `receptionLocation` (lat, lng) |
+| Countdown + "Add to calendar" | `weddingStartISO` / `weddingEndISO`, `receptionStartISO` / `receptionEndISO` (India time, `+05:30`) |
 | Story timeline | `story` |
 | Event cards (order, extra events) | `events` |
 | Venue cards & maps | `venues` |
 | Captions ("Two hearts…" etc.) | `copy` |
 | Link-preview image URL | `site` |
 
-Any value that still starts with **`ADD`** (like `'ADD TIME'`) shows as *"To be announced"*. Buttons that depend on it, such as maps and directions, stay hidden until it's filled in. **Still to fill in:** ceremony and reception times, and both full addresses (with town). Once an address is set, the embedded map and "Get Directions" button appear automatically.
+Any value that starts with **`ADD`** (like `'ADD TIME'`) shows as *"To be announced"*, and buttons that depend on it stay hidden until it's filled in. All details are currently filled in. The address lines were derived from the map pins (Pollachi – Valparai Road, Suleswaranpatti), so adjust the wording if you prefer a different form.
 
 ---
 
@@ -94,6 +97,17 @@ These models need a separate 3D step: an image-to-3D tool or a 3D artist, plus r
 
 ---
 
+## Guided story (auto-play)
+
+**Enter Our Story** plays the film for the guest. It scrolls at a cinematic pace set per scene (slower for the emotional moments), glides into and pauses on the invitation card, story, celebrations and venues so they can be read, and finishes at the final night scene. It takes about a minute and a half.
+
+- Any scroll, swipe, tap or key press hands control back to the guest instantly.
+- A floating **Play / Pause** button resumes the tour; at the end it becomes **Replay**.
+- Paces live in `src/components/autoplay.js` (`PACE`). Reading stops are marked with `data-autoplay-hold="seconds"` in `src/components/content.js`.
+- With *reduce motion* enabled, the button simply jumps to the story without auto-scrolling.
+
+---
+
 ## Music
 
 Put an MP3 at `public/audio/wedding-music.mp3`. Guests then get **"Open the invitation ♫"** or **"Enter without music"**, plus a Music / Pause button. Nothing ever autoplays with sound, and the choice is remembered for the session. Without the file, all music controls hide themselves.
@@ -114,7 +128,7 @@ To set it up from scratch somewhere else: `git init`, `git add .`, `git commit -
 
 To update later, edit and run `git add . && git commit -m "Update details" && git push`. The site redeploys automatically.
 
-**Link previews (WhatsApp etc.):** add a 1200×630 photo as `public/images/og-cover.jpg`, and set `site.url` in `wedding.js` to your Pages URL.
+**Link previews (WhatsApp etc.):** sharing the link shows `public/images/og-cover.jpg`, a 1200×630 invitation card with your portrait, names and both events, plus a description listing both events. Replace the image file to change it. `site.url` in `wedding.js` must match the live URL.
 
 > The site uses relative paths (`base: './'`) and no client-side routing, so it works under any repository name, and on a custom domain, without changes.
 
@@ -129,7 +143,7 @@ src/
 │   ├── wedding.js           ALL wedding content (names, dates, venues, story, copy)
 │   └── assets.js            asset paths, model/photo/music settings
 ├── data/                    public-asset manifest helpers, gallery captions
-├── components/              DOM: content renderer, loader, nav, music, gallery, countdown, cursor glow
+├── components/              DOM: content renderer, loader, nav, guided auto-play, music, gallery, countdown + calendar, cursor glow
 ├── animations/
 │   ├── scrollTimeline.js    scroll position → continuous "film time"
 │   └── reveals.js           GSAP ScrollTrigger + SplitText reveals (letter-by-letter names, word captions)

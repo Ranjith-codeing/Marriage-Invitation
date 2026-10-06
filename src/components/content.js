@@ -9,9 +9,13 @@ const bride = firstName(W.bride);
 /** Shows the value, or an elegant "To be announced" when it's still a placeholder. */
 const tba = (v, label = 'To be announced') => (isAnnounced(v) ? e(v) : `<span class="tba">${label}</span>`);
 
-export const mapsDirections = (address) =>
-  `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`;
-const mapsEmbed = (q) => `https://maps.google.com/maps?q=${encodeURIComponent(q)}&z=15&output=embed`;
+/** Where a venue is: exact coordinates when known, otherwise its name + address. */
+const place = (v) => (v.location ? `${v.location.lat},${v.location.lng}` : `${v.venue || v.name}, ${v.address}`);
+const hasPlace = (v) => !!v.location || isAnnounced(v.address);
+
+/** Turn-by-turn directions from the guest's location to the venue. */
+export const mapsDirections = (v) => `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(place(v))}`;
+const mapsEmbed = (v) => `https://maps.google.com/maps?q=${encodeURIComponent(place(v))}&z=16&output=embed`;
 
 const ornament = `<svg class="ornament" viewBox="0 0 120 12" aria-hidden="true"><path d="M0 6h48M72 6h48" stroke="currentColor" stroke-width=".6"/><path d="M60 1l5 5-5 5-5-5z" fill="none" stroke="currentColor" stroke-width=".8"/><circle cx="60" cy="6" r="1.2" fill="currentColor"/></svg>`;
 
@@ -49,7 +53,7 @@ function hero() {
         <span class="hero__name" data-hero-item>${e(bride)}</span>
       </h1>
       ${isAnnounced(W.weddingDate) ? `<p class="hero__date" data-hero-item>${e(W.weddingDate)}</p>` : ''}
-      <a class="btn btn--ghost hero__cta" href="#prologue" data-hero-item>Enter Our Story <span aria-hidden="true">↓</span></a>
+      <a class="btn btn--ghost hero__cta" href="#prologue" data-hero-item data-autoplay>Enter Our Story <span aria-hidden="true">↓</span></a>
     </div>
   </section>`;
 }
@@ -83,10 +87,11 @@ function detailCard(label, value, sub = '') {
 }
 
 function invitation() {
-  const hasISO = !!W.weddingDateISO && !Number.isNaN(Date.parse(W.weddingDateISO));
+  const hasStart = !Number.isNaN(Date.parse(W.weddingStartISO));
+  const hasCalendar = events.some((ev) => !Number.isNaN(Date.parse(ev.start)));
   return `
   <section class="panel" id="invitation" data-scene="invitation" aria-labelledby="invitation-title">
-    <div class="panel__inner panel__inner--center">
+    <div class="panel__inner panel__inner--center" data-autoplay-hold="5">
       <p class="eyebrow reveal">${e(copy.tamilTagline)}</p>
       <h2 class="invite__names reveal" id="invitation-title">${e(W.groom)} <em>&amp;</em> ${e(W.bride)}</h2>
       <div class="reveal">${ornament}</div>
@@ -104,8 +109,8 @@ function invitation() {
           .join('')}
       </div>
 
-      ${hasISO ? `<div class="countdown reveal" data-countdown="${e(W.weddingDateISO)}" aria-label="Countdown to the wedding"></div>` : ''}
-      ${hasISO ? `<button type="button" class="btn btn--ghost reveal" data-add-calendar>Add to calendar</button>` : ''}
+      ${hasStart ? `<p class="countdown__title reveal">Counting down to the muhurtham</p><div class="countdown reveal" data-countdown="${e(W.weddingStartISO)}" aria-label="Countdown to the wedding"></div>` : ''}
+      ${hasCalendar ? `<button type="button" class="btn btn--ghost reveal" data-add-calendar>Add to calendar</button>` : ''}
     </div>
   </section>`;
 }
@@ -122,7 +127,7 @@ function storySection() {
     <div class="panel__inner">
       <p class="eyebrow reveal">Our Story</p>
       <h2 class="section-title reveal" id="story-title">Two lives. Two journeys.<br /><em>One beautiful story.</em></h2>
-      <div class="story-layout ${photo ? 'has-photo' : ''}">
+      <div class="story-layout ${photo ? 'has-photo' : ''}" data-autoplay-hold="3">
         ${photo}
         <ol class="timeline">
           ${story
@@ -147,7 +152,7 @@ function eventsSection() {
     <div class="panel__inner">
       <p class="eyebrow reveal">Celebrations</p>
       <h2 class="section-title reveal" id="events-title">Join us as we <em>celebrate</em></h2>
-      <div class="events">
+      <div class="events" data-autoplay-hold="4">
         ${events
           .map(
             (ev) => `
@@ -159,7 +164,7 @@ function eventsSection() {
               <div><dt>Time</dt><dd>${tba(ev.time)}</dd></div>
               <div><dt>Venue</dt><dd>${tba(ev.venue)}</dd></div>
             </dl>
-            ${isAnnounced(ev.address) ? `<a class="btn btn--ghost btn--small" href="${mapsDirections(ev.venue + ', ' + ev.address)}" target="_blank" rel="noopener">Get Directions</a>` : ''}
+            ${hasPlace(ev) ? `<a class="btn btn--ghost btn--small" href="${mapsDirections(ev)}" target="_blank" rel="noopener">Get Directions</a>` : ''}
           </article>`
           )
           .join('')}
@@ -174,25 +179,30 @@ function venueSection() {
     <div class="panel__inner">
       <p class="eyebrow reveal">The Venues</p>
       <h2 class="section-title reveal" id="venue-title">Where we <em>celebrate</em></h2>
-      <div class="venues">
+      <div class="venues" data-autoplay-hold="4">
         ${venues
           .map((v) => {
-            const hasAddress = isAnnounced(v.address);
+            const known = hasPlace(v);
+            const when = [v.date, v.time].filter(isAnnounced).map(e).join(' · ');
             return `
           <article class="venue reveal">
             <div class="venue__map">
               ${
-                hasAddress && v.mapEmbed
-                  ? `<iframe title="Map showing ${e(v.name)}" data-src="${mapsEmbed(v.name + ', ' + v.address)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>`
+                known && v.mapEmbed
+                  ? `<iframe title="Map showing ${e(v.name)}" data-src="${mapsEmbed(v)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>`
                   : `<div class="venue__placeholder" aria-hidden="true">${ornament}<p>Map coming soon</p></div>`
               }
             </div>
             <div class="venue__text">
               <p class="venue__label">${e(v.label)}</p>
               <h3 class="venue__name">${tba(v.name, 'Venue to be announced')}</h3>
-              <p class="venue__address">${hasAddress ? e(v.address) : 'Full address coming soon.'}</p>
+              ${when ? `<p class="venue__when">${when}</p>` : ''}
+              <p class="venue__address">${isAnnounced(v.address) ? e(v.address) : 'Full address coming soon.'}</p>
               ${v.notes ? `<p class="venue__notes">${e(v.notes)}</p>` : ''}
-              ${hasAddress ? `<a class="btn btn--gold btn--small" href="${mapsDirections(v.name + ', ' + v.address)}" target="_blank" rel="noopener">Get Directions</a>` : ''}
+              <div class="venue__actions">
+                ${known ? `<a class="btn btn--gold btn--small" href="${mapsDirections(v)}" target="_blank" rel="noopener">Get Directions</a>` : ''}
+                ${v.mapUrl ? `<a class="btn btn--ghost btn--small" href="${e(v.mapUrl)}" target="_blank" rel="noopener">Open in Google Maps</a>` : ''}
+              </div>
             </div>
           </article>`;
           })
@@ -254,6 +264,10 @@ function finale() {
 function controls() {
   return `
   <div class="controls">
+    <button type="button" class="control control--story" data-autoplay-control hidden aria-pressed="false">
+      <span class="control__glyph" aria-hidden="true"></span>
+      <span class="control__label" data-autoplay-label>Play story</span>
+    </button>
     <button type="button" class="control control--music" data-music hidden aria-pressed="false">
       <span class="control__icon" aria-hidden="true"><i></i><i></i><i></i></span>
       <span class="control__label" data-music-label>Music</span>

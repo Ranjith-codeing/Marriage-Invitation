@@ -1,17 +1,13 @@
-import { weddingDetails as W } from '../config/wedding.js';
+import { events, weddingDetails as W } from '../config/wedding.js';
 import { isAnnounced } from '../utils/math.js';
 
-/** Live countdown (only rendered when weddingDateISO is set). */
+/** Live countdown to the muhurtham + "Add to calendar" (.ics built in the browser). */
 export function initCountdown() {
-  const iso = W.weddingDateISO;
-  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(iso);
-  // A date-only value counts down to the start of that day (guest's local time)
-  const startOf = () => (dateOnly ? new Date(`${iso}T00:00:00`) : new Date(iso));
-
   const el = document.querySelector('[data-countdown]');
   if (el) {
-    const target = startOf().getTime();
+    const target = Date.parse(el.dataset.countdown);
     const units = [['Days', 86400000], ['Hours', 3600000], ['Minutes', 60000], ['Seconds', 1000]];
+    let timer = 0;
     const render = () => {
       let diff = target - Date.now();
       if (diff <= 0) {
@@ -27,30 +23,37 @@ export function initCountdown() {
         })
         .join('');
     };
-    const timer = setInterval(render, 1000);
+    timer = setInterval(render, 1000);
     render();
   }
 
-  // "Add to calendar" — generates an .ics file in the browser (no server needed)
+  // One .ics file with every event that has a start time (reception + wedding)
   document.querySelector('[data-add-calendar]')?.addEventListener('click', () => {
-    const start = startOf();
     const fmt = (d) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-    const day = (d) => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
-    const when = dateOnly
-      ? [`DTSTART;VALUE=DATE:${day(start)}`, `DTEND;VALUE=DATE:${day(new Date(start.getTime() + 86400000))}`]
-      : [`DTSTART:${fmt(start)}`, `DTEND:${fmt(new Date(start.getTime() + 3 * 3600000))}`];
-    const esc = (s) => String(s).replace(/([,;\\])/g, '\\$1');
-    const location = [W.weddingVenue, W.weddingAddress].filter(isAnnounced).join(', ');
-    const ics = [
-      'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Wedding Invitation//EN', 'BEGIN:VEVENT',
-      `UID:${fmt(start)}-wedding@invitation`, `DTSTAMP:${fmt(new Date())}`,
-      ...when,
-      `SUMMARY:${esc(`Wedding of ${W.groom} & ${W.bride}`)}`,
-      location ? `LOCATION:${esc(location)}` : '',
-      'END:VEVENT', 'END:VCALENDAR',
-    ].filter(Boolean).join('\r\n');
+    const esc = (s) => String(s).replace(/([,;\\])/g, '\\$1').replace(/\n/g, '\\n');
+    const stamp = fmt(new Date());
+    const vevents = events
+      .filter((ev) => !Number.isNaN(Date.parse(ev.start)))
+      .map((ev) => {
+        const start = new Date(ev.start);
+        const end = Number.isNaN(Date.parse(ev.end)) ? new Date(start.getTime() + 3 * 3600000) : new Date(ev.end);
+        const location = [ev.venue, ev.address].filter(isAnnounced).join(', ');
+        return [
+          'BEGIN:VEVENT',
+          `UID:${ev.id}-${fmt(start)}@ranjith-jayachitra`,
+          `DTSTAMP:${stamp}`,
+          `DTSTART:${fmt(start)}`,
+          `DTEND:${fmt(end)}`,
+          `SUMMARY:${esc(`${ev.title} — ${W.groom} & ${W.bride}`)}`,
+          location ? `LOCATION:${esc(location)}` : '',
+          ev.mapUrl ? `URL:${ev.mapUrl}` : '',
+          ev.mapUrl ? `DESCRIPTION:${esc(`Map: ${ev.mapUrl}`)}` : '',
+          'END:VEVENT',
+        ].filter(Boolean);
+      });
+    const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Ranjith & Jayachitra//Wedding Invitation//EN', 'CALSCALE:GREGORIAN', ...vevents.flat(), 'END:VCALENDAR'].join('\r\n');
     const url = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' }));
-    const a = Object.assign(document.createElement('a'), { href: url, download: 'wedding.ics' });
+    const a = Object.assign(document.createElement('a'), { href: url, download: 'ranjith-jayachitra-wedding.ics' });
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   });

@@ -232,7 +232,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .detail-card__time .tba { font-size: 0.95rem; }
 .detail-card__value { font-size: clamp(1.5rem, 3.4vw, 1.9rem); }
 
-.countdown { display: flex; justify-content: center; gap: clamp(10px, 3vw, 28px); margin: 2.4rem 0 1.6rem; flex-wrap: wrap; }
+.countdown__title { margin-top: 2.4rem; font-size: 0.66rem; letter-spacing: 0.3em; text-transform: uppercase; color: var(--wine); font-weight: 600; }
+.countdown { display: flex; justify-content: center; gap: clamp(10px, 3vw, 28px); margin: 1rem 0 1.6rem; flex-wrap: wrap; }
 .countdown__unit { display: flex; flex-direction: column; align-items: center; min-width: 64px; }
 .countdown__num { font-family: var(--serif); font-size: clamp(2rem, 6vw, 3rem); color: var(--wine-deep); line-height: 1; }
 .countdown__label { font-size: 0.62rem; letter-spacing: 0.28em; text-transform: uppercase; color: var(--ink-soft); margin-top: 0.4rem; }
@@ -283,9 +284,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .venue__text { padding: clamp(22px, 4vw, 34px); display: grid; gap: 10px; justify-items: start; }
 .venue__label { font-size: 0.68rem; letter-spacing: 0.28em; text-transform: uppercase; color: var(--gold-soft); }
 .venue__name { font-size: clamp(1.8rem, 4vw, 2.4rem); }
+.venue__when { font-family: var(--serif); font-size: 1.2rem; color: var(--champagne); }
 .venue__address { color: rgba(247, 240, 227, 0.8); overflow-wrap: anywhere; }
+.venue__actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
 .venue__notes { color: rgba(247, 240, 227, 0.68); font-size: 0.9rem; }
-.venue .btn { margin-top: 8px; }
 
 /* Gallery — masonry via CSS columns; images keep their natural aspect ratio */
 .gallery { list-style: none; margin: 0; padding: 0; columns: 3 260px; column-gap: 16px; }
@@ -333,6 +335,12 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .control:hover { border-color: var(--gold-soft); transform: translateY(-2px); }
 .control--top { padding: 0; font-size: 1.1rem; letter-spacing: 0; }
 .control__icon { display: inline-flex; align-items: flex-end; gap: 2px; height: 14px; }
+.control__glyph { position: relative; width: 12px; height: 12px; flex: none; }
+.control__glyph::before, .control__glyph::after { content: ''; position: absolute; top: 0; bottom: 0; background: var(--gold-soft); }
+.control--story .control__glyph::before { left: 1px; width: 11px; clip-path: polygon(0 0, 100% 50%, 0 100%); }
+.control--story .control__glyph::after { display: none; }
+.control--story[aria-pressed='true'] .control__glyph::before { width: 4px; clip-path: none; }
+.control--story[aria-pressed='true'] .control__glyph::after { display: block; right: 1px; width: 4px; }
 .control__icon i { width: 2px; height: 30%; background: var(--gold-soft); border-radius: 1px; }
 .control.is-playing .control__icon i { animation: eq 1s ease-in-out infinite; }
 .control.is-playing .control__icon i:nth-child(2) { animation-delay: -0.4s; }
@@ -348,7 +356,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
   .detail-card { padding: 20px 14px; }
   .event-card__meta div { grid-template-columns: 64px 1fr; }
   .control__label { display: none; }
-  .control--music { padding: 0; width: 48px; }
+  .control--music, .control--story { padding: 0; width: 48px; }
   .lightbox__prev, .lightbox__next { top: auto; bottom: 20px; transform: none; }
 }
 

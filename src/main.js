@@ -7,6 +7,7 @@ import { initMusic } from './components/music.js';
 import { initGallery } from './components/gallery.js';
 import { initCountdown } from './components/countdown.js';
 import { initCursorGlow } from './components/cursor.js';
+import { initAutoplay } from './components/autoplay.js';
 import { ScrollTimeline } from './animations/scrollTimeline.js';
 import { prefersReducedMotion, supportsWebGL, detectQuality } from './utils/device.js';
 
@@ -89,6 +90,7 @@ async function boot() {
   document.body.classList.remove('is-loading');
   loader.hide();
   experience?.start();
+  initAutoplay({ reducedMotion });
 
   if (reveals) {
     initCursorGlow((x, y) => experience?.setPointer(x, y));
