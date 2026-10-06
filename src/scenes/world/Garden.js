@@ -1,7 +1,8 @@
 import * as THREE from 'three';
-import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
+import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { seededRandom, clamp, easeOutCubic } from '../../utils/math.js';
-import { frondTexture, barkTexture, blobShadowTexture } from '../../utils/textures.js';
+import { blobShadowTexture } from '../../utils/textures.js';
+import { createPalms } from './Palms.js';
 import { roseGeometry, jasmineGeometry, marigoldGeometry, leafGeometry, floraMaterial, PALETTE, pick } from './flora.js';
 import { applyWind } from './wind.js';
 
@@ -10,7 +11,7 @@ export const ARCH_SPAN = 1.55;
 export const ARCH_POST = 1.9;
 
 /** Soft, organic blob (smooth-shaded, gently lumpy) used for bushes and tree canopies. */
-function blobGeometry(detail = 3, seed = 1) {
+export function blobGeometry(detail = 3, seed = 1) {
   let g = new THREE.IcosahedronGeometry(1, detail);
   g.deleteAttribute('normal');
   g.deleteAttribute('uv');
@@ -24,21 +25,6 @@ function blobGeometry(detail = 3, seed = 1) {
       Math.sin(v.x * 7.0 + v.z * 5.0 + seed) * 0.035;
     v.multiplyScalar(1 + n);
     p.setXYZ(i, v.x, v.y * 0.92, v.z);
-  }
-  g.computeVertexNormals();
-  return g;
-}
-
-/** A coconut-palm frond, bent into an arching, drooping curve along +Z. */
-function frondGeometry() {
-  const L = 3.0, W = 1.1;
-  const g = new THREE.PlaneGeometry(W, L, 4, 14);
-  const p = g.attributes.position;
-  for (let i = 0; i < p.count; i++) {
-    const x = p.getX(i);
-    const t = (p.getY(i) + L / 2) / L;
-    const along = t * L;
-    p.setXYZ(i, x * (1 - t * 0.55), along * 0.45 - t * t * L * 0.75 + Math.abs(x) * 0.28, along);
   }
   g.computeVertexNormals();
   return g;
@@ -163,55 +149,15 @@ export function createGarden({ density = 1 }) {
   }
 
   // ── Coconut palms lining the path ──
-  const palms = [];
+  const palmSpecs = [];
   for (let i = 0; i < 14; i++) {
-    const s = i % 2 ? 1 : -1;
-    palms.push({ x: s * (3.4 + rand() * 2.2), z: 4 + i * 3.6 + rand() * 1.5, h: 5.2 + rand() * 2.4, lean: s * (0.5 + rand() * 0.7), rot: rand() * 6 });
+    const side = i % 2 ? 1 : -1;
+    palmSpecs.push({ x: side * (3.4 + rand() * 2.2), z: 4 + i * 3.6 + rand() * 1.5, h: 5.2 + rand() * 2.4, lean: side * (0.5 + rand() * 0.7) });
   }
-  const trunkGeos = palms.map((p) => {
-    const curve = new THREE.QuadraticBezierCurve3(new THREE.Vector3(0, 0, 0), new THREE.Vector3(p.lean * 0.15, p.h * 0.55, 0), new THREE.Vector3(p.lean, p.h, 0));
-    const geo = new THREE.TubeGeometry(curve, 16, 0.14, 9, false);
-    const pos = geo.attributes.position;
-    for (let k = 0; k < pos.count; k++) {
-      const y = pos.getY(k) / p.h;
-      const t = curve.getPoint(THREE.MathUtils.clamp(y, 0, 1));
-      const f = 1 - y * 0.35 + (y < 0.06 ? (0.06 - y) * 4 : 0); // taper + flared base
-      pos.setXYZ(k, t.x + (pos.getX(k) - t.x) * f, pos.getY(k), t.z + (pos.getZ(k) - t.z) * f);
-    }
-    geo.computeVertexNormals();
-    geo.translate(p.x, 0, p.z);
-    shadows.push([p.x + p.lean * 0.6, p.z, 1.6]);
-    return geo;
-  });
-  const trunks = new THREE.Mesh(mergeGeometries(trunkGeos), new THREE.MeshStandardMaterial({ map: barkTexture(), roughness: 0.95 }));
-  trunks.castShadow = true;
-  group.add(trunks);
-
-  const frondsPer = 13;
-  const frondMat = applyWind(
-    new THREE.MeshStandardMaterial({ map: frondTexture(), alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.7 }),
-    { key: 'frond', factor: 'pow(clamp(transformed.z / 3.0, 0.0, 1.0), 2.0)', amp: 0.28, freq: 1.25 }
-  );
-  const frondMesh = new THREE.InstancedMesh(frondGeometry(), frondMat, palms.length * frondsPer);
-  const coconutMesh = new THREE.InstancedMesh(new THREE.SphereGeometry(0.11, 10, 8), new THREE.MeshStandardMaterial({ color: '#5b4a2c', roughness: 0.6 }), palms.length * 5);
-  const crowns = [];
-  palms.forEach((p, i) => {
-    const top = new THREE.Vector3(p.x + p.lean, p.h, p.z);
-    crowns.push(top.clone());
-    for (let k = 0; k < frondsPer; k++) {
-      const yaw = p.rot + (k / frondsPer) * Math.PI * 2 + rand() * 0.3;
-      const pitch = -0.3 + rand() * 0.4 + (k % 3 === 0 ? -0.35 : 0);
-      q.setFromEuler(e.set(pitch, yaw, 0, 'YXZ'));
-      const sz = 0.85 + rand() * 0.3;
-      frondMesh.setMatrixAt(i * frondsPer + k, m4.compose(top, q, sc.set(sz, sz, sz)));
-    }
-    for (let k = 0; k < 5; k++) {
-      const a = (k / 5) * Math.PI * 2 + p.rot;
-      coconutMesh.setMatrixAt(i * 5 + k, m4.makeTranslation(top.x + Math.cos(a) * 0.15, top.y - 0.22, top.z + Math.sin(a) * 0.15));
-    }
-  });
-  frondMesh.castShadow = true;
-  group.add(frondMesh, coconutMesh);
+  const palms = createPalms(palmSpecs);
+  group.add(palms.group);
+  shadows.push(...palms.shadows);
+  const crowns = palms.crowns;
 
   // ── Broadleaf trees further out ──
   const trees = [];

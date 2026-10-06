@@ -13,7 +13,6 @@ import { wind } from './world/wind.js';
 import { createSky } from './world/Sky.js';
 import { createGround } from './world/Ground.js';
 import { createHorizon } from './world/Horizon.js';
-import { createClouds } from './world/Clouds.js';
 import { createGrass } from './world/Grass.js';
 import { createGarden } from './world/Garden.js';
 import { createMandapam, PLATFORM } from './world/Mandapam.js';
@@ -97,11 +96,10 @@ export class Experience {
     scene.add(this.hemi, this.sun, this.sun.target, this.fill, this.fill.target);
 
     // Sky, ground, horizon, clouds
-    this.sky = createSky();
+    this.sky = createSky({ octaves: this.tier === 'high' ? 5 : this.tier === 'medium' ? 4 : 3 });
     this.ground = createGround();
     this.horizon = createHorizon();
-    this.clouds = createClouds({ count: q.clouds });
-    scene.add(this.sky.mesh, this.ground.group, this.horizon.group, this.clouds.group);
+    scene.add(this.sky.mesh, this.ground.group, this.horizon.group);
     this.setupEnvironment();
     onProgress(0.12, 'scene');
     await nextFrame();
@@ -283,10 +281,9 @@ export class Experience {
     this.fill.target.position.set(0, 1.2, z);
     this.fill.intensity = 0.1 + s.hemi * 0.15 + s.lamp * 0.12;
 
-    this.sky.update(s, camera);
+    this.sky.update(s, camera, time);
     this.ground.update(s);
     this.horizon.update(s);
-    this.clouds.update(s, time);
     this.garden.update(s);
     this.mandapam.update(s, time);
     this.fairy.update(s, time);
