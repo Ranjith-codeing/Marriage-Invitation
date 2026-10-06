@@ -1,0 +1,13 @@
+node_modules
+dist
+.DS_Store
+Thumbs.db
+*.log
+
+# Private reference photos used only to commission/create the 3D models.
+# They are NOT part of the website — keep them out of the public repo.
+reference-photos/*
+!reference-photos/README.md
+
+# Local editor/preview config
+.claude/

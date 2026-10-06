@@ -1,0 +1,19 @@
+{
+  "name": "wedding-invitation",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Ranjith & Jayachitra — a cinematic, interactive 3D wedding invitation (static site for GitHub Pages).",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "gsap": "^3.12.5",
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "vite": "^5.4.10"
+  }
+}
