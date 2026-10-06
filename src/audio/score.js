@@ -1,119 +1,62 @@
 /**
- * An original, generative background score — composed and synthesised live
- * with the Web Audio API (nothing to download, no licensing concerns).
+ * The background score: an original arrangement of Pachelbel's Canon in D —
+ * the classic wedding piece (public domain) — for soft piano, warm strings,
+ * cello and celesta in a concert-hall reverb, synthesised live with the Web
+ * Audio API (nothing to download, no licensing concerns).
  *
- * Raga Kalyani (the auspicious "wedding" raga, S R2 G3 M2 P D2 N3 — Lydian),
- * tonic Sa = D, ~70 BPM, an 8-bar progression with:
- *   drone  — tanpura (plucked Pa–Sa–Sa–Sa cycle, Karplus–Strong strings)
- *   pad    — warm strings
- *   pluck  — santoor / veena-style melodies with gamaka slides
- *   flute  — bansuri carrying the love theme
- *   bells  — temple bells and small chimes
- *   drum   — a soft mridangam-like pulse
- * Each layer's level follows the story scene (see SCENE_MIX), so the music
- * rises and settles with the film.
+ * The famous ground bass and arpeggios open the film; the melody enters in
+ * the prologue and moves through the Canon's variations as the story plays;
+ * strings swell into counter-melody at the climax and the music settles while
+ * guests read. On the beach, gentle surf breathes underneath.
  */
 
-const BPM = 70;
+const BPM = 64;
 const BEAT = 60 / BPM;
 const EIGHTH = BEAT / 2;
-const LOOKAHEAD = 0.3; // seconds of music scheduled ahead
-
+const LOOKAHEAD = 0.3;
 const midiHz = (m) => 440 * 2 ** ((m - 69) / 12);
-const SA = 62; // D4
-const KALYANI = [0, 2, 4, 6, 7, 9, 11];
-const degreeToMidi = (deg) => SA + Math.floor(deg / 7) * 12 + KALYANI[((deg % 7) + 7) % 7];
 
-// 8-bar progression: chord tones (scale degrees from Sa) + string-pad voicing (MIDI)
-const BARS = [
-  { tones: [0, 2, 4], pad: [50, 57, 62, 66, 69] }, // D
-  { tones: [5, 7, 9], pad: [47, 54, 59, 62, 66] }, // Bm
-  { tones: [1, 3, 5], pad: [52, 59, 64, 68, 71] }, // E  (the raga's bright II)
-  { tones: [4, 6, 8], pad: [45, 52, 57, 61, 64] }, // A
-  { tones: [5, 7, 9], pad: [47, 54, 59, 62, 66] }, // Bm
-  { tones: [2, 4, 6], pad: [42, 49, 54, 57, 61] }, // F#m
-  { tones: [1, 3, 5, 7], pad: [52, 59, 62, 64, 68] }, // E7
-  { tones: [0, 2, 4], pad: [50, 57, 62, 66, 69] }, // D
+// The Canon's eight chords, two beats each: D A Bm F#m G D G A
+const CHORDS = [
+  { bass: 50, arp: [50, 57, 66, 57], strings: [54, 57, 62, 66], sparkle: 90 },
+  { bass: 45, arp: [57, 64, 73, 64], strings: [52, 57, 61, 64], sparkle: 85 },
+  { bass: 47, arp: [59, 66, 74, 66], strings: [54, 59, 62, 66], sparkle: 86 },
+  { bass: 42, arp: [54, 61, 69, 61], strings: [54, 57, 61, 66], sparkle: 85 },
+  { bass: 43, arp: [55, 62, 71, 62], strings: [55, 59, 62, 67], sparkle: 83 },
+  { bass: 38, arp: [50, 57, 66, 57], strings: [54, 57, 62, 66], sparkle: 81 },
+  { bass: 43, arp: [55, 62, 71, 62], strings: [55, 59, 62, 67], sparkle: 86 },
+  { bass: 45, arp: [57, 64, 73, 64], strings: [52, 57, 61, 64], sparkle: 88 },
 ];
 
-// The love theme (bansuri): [bar, beat, midi, beats]
-const THEME = [
-  [0, 0, 69, 1], [0, 1, 71, 1], [0, 2, 73, 1], [0, 3, 76, 1],
-  [1, 0, 74, 3],
-  [2, 0, 73, 1], [2, 1, 71, 0.5], [2, 1.5, 73, 0.5], [2, 2, 69, 1], [2, 3, 68, 1],
-  [3, 0, 69, 3],
-  [4, 0, 66, 1], [4, 1, 69, 1], [4, 2, 71, 1], [4, 3, 74, 1],
-  [5, 0, 73, 1.5], [5, 1.5, 71, 0.5], [5, 2, 69, 2],
-  [6, 0, 66, 1], [6, 1, 64, 1], [6, 2, 66, 1], [6, 3, 69, 1],
-  [7, 0, 62, 3.5],
+// Melody variations: [notes per chord, notes]
+const VARIATIONS = [
+  [1, [78, 76, 74, 73, 71, 69, 71, 73]], // the theme, in long notes
+  [1, [74, 73, 71, 69, 67, 66, 67, 64]], // the descending line
+  [2, [62, 66, 69, 67, 66, 62, 66, 64, 62, 59, 62, 69, 67, 71, 69, 67]], // flowing quarters
+  [4, [78, 76, 78, 74, 73, 76, 69, 73, 71, 74, 78, 74, 73, 69, 73, 76, 74, 71, 74, 79, 78, 74, 81, 78, 79, 74, 71, 74, 76, 73, 69, 76]], // cascading eighths
 ];
+const COUNTER = [VARIATIONS[0][1], VARIATIONS[1][1]]; // string counter-melody (an octave below)
 
-const RHYTHMS = [
-  [1, 0, 1, 1, 1, 0, 1, 0],
-  [1, 1, 0, 1, 1, 0, 1, 1],
-  [1, 0, 0, 1, 1, 0, 1, 0],
-  [1, 0, 1, 0, 1, 1, 1, 0],
-];
-
-const TANPURA = [45, 50, 50, 38]; // Pa (A2), Sa (D3), Sa (D3), low Sa (D2) — one string per beat
-const DRUM = ['L', '', '', 'H', 'L', '', 'H', '']; // per eighth note
-
-// How present each layer is in each scene (0–1)
-const CALM = { drone: 0.6, pad: 0.45, pluck: 0.35, flute: 0.15, bells: 0.1, drum: 0 };
+// How present each instrument is per story scene (0–1)
+const CALM = { bass: 0.6, pad: 0.6, arp: 0.6, melody: 0.45, lead: 0, sparkle: 0.15, surf: 0.35 };
 const SCENE_MIX = {
-  hero: { drone: 0.75, pad: 0.35, pluck: 0.25, flute: 0, bells: 0, drum: 0 },
-  prologue: { drone: 0.7, pad: 0.5, pluck: 0, flute: 0.35, bells: 0, drum: 0 },
-  walk: { drone: 0.6, pad: 0.35, pluck: 0.75, flute: 0, bells: 0, drum: 0 },
-  garden: { drone: 0.6, pad: 0.4, pluck: 0.9, flute: 0.3, bells: 0, drum: 0.15 },
-  mandapam: { drone: 0.7, pad: 0.5, pluck: 0.7, flute: 0.35, bells: 0.8, drum: 0.6 },
-  moment: { drone: 0.7, pad: 0.85, pluck: 0.35, flute: 1, bells: 0.5, drum: 0.35 },
+  hero: { bass: 0.8, pad: 0.55, arp: 0.7, melody: 0, lead: 0, sparkle: 0.25, surf: 1 },
+  prologue: { bass: 0.7, pad: 0.7, arp: 0.45, melody: 0.75, lead: 0, sparkle: 0.15, surf: 0.6 },
+  walk: { bass: 0.85, pad: 0.6, arp: 0.85, melody: 0.85, lead: 0, sparkle: 0.3, surf: 0.6 },
+  garden: { bass: 0.9, pad: 0.7, arp: 0.85, melody: 0.9, lead: 0.35, sparkle: 0.4, surf: 0.55 },
+  mandapam: { bass: 1, pad: 0.85, arp: 0.75, melody: 0.95, lead: 0.6, sparkle: 0.5, surf: 0.5 },
+  moment: { bass: 1, pad: 1, arp: 0.7, melody: 1, lead: 1, sparkle: 0.6, surf: 0.4 },
   invitation: CALM,
   story: CALM,
   events: CALM,
   venue: CALM,
   gallery: CALM,
-  final: { drone: 0.6, pad: 0.85, pluck: 0.25, flute: 0.9, bells: 0.4, drum: 0 },
+  final: { bass: 0.85, pad: 0.95, arp: 0.6, melody: 0.9, lead: 0.75, sparkle: 0.55, surf: 0.5 },
 };
-const LAYER_LEVEL = { drone: 0.42, pad: 0.16, pluck: 0.36, flute: 0.3, bells: 0.22, drum: 0.32 };
-
-const pick = (list) => list[Math.floor(Math.random() * list.length)];
-
-/** Karplus–Strong plucked string rendered into an AudioBuffer (peak-normalised). */
-function pluckBuffer(ctx, freq, seconds, { decayTo = 0.01, brightness = 0.6, shimmer = 0 } = {}) {
-  const sr = ctx.sampleRate;
-  const length = Math.floor(sr * seconds);
-  const buffer = ctx.createBuffer(1, length, sr);
-  const out = buffer.getChannelData(0);
-  const N = Math.max(2, Math.round(sr / freq));
-  const damping = decayTo ** (1 / (freq * seconds)); // per-period loss → reaches decayTo at the end
-  const line = new Float32Array(N);
-  let lp = 0;
-  for (let i = 0; i < N; i++) {
-    lp += brightness * (Math.random() * 2 - 1 - lp);
-    line[i] = lp;
-  }
-  let idx = 0;
-  for (let i = 0; i < length; i++) {
-    const a = line[idx];
-    const b = line[(idx + 1) % N];
-    let v = (a + b) * 0.5 * damping;
-    if (shimmer) v += shimmer * (a - b); // keeps upper partials ringing (tanpura "jawari" buzz)
-    line[idx] = v;
-    out[i] = a;
-    idx = (idx + 1) % N;
-  }
-  let peak = 0;
-  for (let i = 0; i < length; i++) peak = Math.max(peak, Math.abs(out[i]));
-  const fade = Math.floor(sr * 0.05);
-  for (let i = 0; i < length; i++) {
-    out[i] /= peak || 1;
-    if (i > length - fade) out[i] *= (length - i) / fade;
-  }
-  return { buffer, baseHz: sr / N };
-}
+const LEVEL = { bass: 0.3, pad: 0.12, arp: 0.3, melody: 0.36, lead: 0.15, sparkle: 0.1, surf: 0.2 };
 
 /** Synthetic concert-hall reverb impulse response. */
-function reverbImpulse(ctx, seconds = 3.4) {
+function reverbImpulse(ctx, seconds = 3.6) {
   const sr = ctx.sampleRate;
   const length = Math.floor(sr * seconds);
   const ir = ctx.createBuffer(2, length, sr);
@@ -122,33 +65,42 @@ function reverbImpulse(ctx, seconds = 3.4) {
     let lp = 0;
     for (let i = 0; i < length; i++) {
       const t = i / sr;
-      lp += 0.35 * (Math.random() * 2 - 1 - lp);
-      d[i] = lp * Math.exp(-t / 0.95) * (t < 0.012 ? t / 0.012 : 1);
+      lp += 0.3 * (Math.random() * 2 - 1 - lp);
+      d[i] = lp * Math.exp(-t / 1.05) * (t < 0.015 ? t / 0.015 : 1);
     }
   }
   return ir;
 }
 
+/** Exponential decay that is cut short gracefully if the note ends first. */
+function decayEnvelope(param, t, peak, decay, end) {
+  param.setValueAtTime(0, t);
+  param.linearRampToValueAtTime(peak, t + 0.006);
+  const stop = Math.min(t + decay, end);
+  const atStop = peak * 0.001 ** ((stop - t) / decay);
+  param.exponentialRampToValueAtTime(Math.max(0.00001, atStop), stop);
+  param.setTargetAtTime(0, stop, 0.12);
+}
+
 export class WeddingScore {
-  constructor({ getScene = () => 'hero', volume = 0.6 } = {}) {
+  constructor({ getScene = () => 'hero', volume = 0.5 } = {}) {
     this.getScene = getScene;
     this.volume = volume;
+    this.scenario = 'garden';
     this.ctx = null;
     this.playing = false;
   }
 
   build() {
     const ctx = (this.ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'playback' }));
-
-    // Master: layers → (dry + reverb) → gentle compressor → volume
     this.master = ctx.createGain();
     this.master.gain.value = 0;
     const comp = ctx.createDynamicsCompressor();
-    comp.threshold.value = -20;
-    comp.knee.value = 18;
-    comp.ratio.value = 3;
+    comp.threshold.value = -18;
+    comp.knee.value = 16;
+    comp.ratio.value = 2.5;
     comp.attack.value = 0.02;
-    comp.release.value = 0.35;
+    comp.release.value = 0.4;
     this.master.connect(comp).connect(ctx.destination);
 
     this.bus = ctx.createGain();
@@ -156,11 +108,11 @@ export class WeddingScore {
     const reverb = ctx.createConvolver();
     reverb.buffer = reverbImpulse(ctx);
     this.reverbSend = ctx.createGain();
-    this.reverbSend.gain.value = 0.42;
+    this.reverbSend.gain.value = 0.4;
     this.reverbSend.connect(reverb).connect(this.master);
 
     this.layers = {};
-    for (const name of Object.keys(LAYER_LEVEL)) {
+    for (const name of Object.keys(LEVEL)) {
       const g = ctx.createGain();
       g.gain.value = 0;
       g.connect(this.bus);
@@ -168,16 +120,18 @@ export class WeddingScore {
       this.layers[name] = g;
     }
 
-    // Instruments
-    this.tanpura = pluckBuffer(ctx, midiHz(50), 6, { decayTo: 0.02, brightness: 0.85, shimmer: 0.06 });
-    this.santoor = pluckBuffer(ctx, midiHz(74), 2.6, { decayTo: 0.01, brightness: 0.55 });
-    this.noise = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+    this.noise = ctx.createBuffer(1, ctx.sampleRate * 4, ctx.sampleRate);
     const n = this.noise.getChannelData(0);
     for (let i = 0; i < n.length; i++) n[i] = Math.random() * 2 - 1;
+    this.startSurf();
 
     this.step = 0;
-    this.motif = null;
-    this.lastDegree = 4;
+    this.cycle = 0;
+  }
+
+  setScenario(name) {
+    this.scenario = name;
+    if (this.ctx && this.playing) this.applyMix();
   }
 
   async start() {
@@ -212,7 +166,6 @@ export class WeddingScore {
     }, 1400);
   }
 
-  /** Pause/resume the audio clock with the page's visibility (no catch-up burst). */
   setHidden(hidden) {
     if (!this.ctx || !this.playing) return;
     if (hidden) this.ctx.suspend();
@@ -223,218 +176,173 @@ export class WeddingScore {
     const mix = SCENE_MIX[this.getScene()] || CALM;
     const now = this.ctx.currentTime;
     for (const [name, gain] of Object.entries(this.layers)) {
-      const target = (mix[name] ?? 0) * LAYER_LEVEL[name];
+      let target = (mix[name] ?? 0) * LEVEL[name];
+      if (name === 'surf' && this.scenario !== 'beach') target = 0;
       if (immediate) gain.gain.setValueAtTime(target, now);
       else gain.gain.setTargetAtTime(target, now, 1.6);
     }
     this.mix = mix;
   }
 
-  /** Lookahead scheduler: queue every eighth note that falls inside the window. */
   schedule() {
     const ctx = this.ctx;
-    if (this.nextTime < ctx.currentTime - 0.5) this.nextTime = ctx.currentTime + 0.05; // after a stall
+    if (this.nextTime < ctx.currentTime - 0.5) this.nextTime = ctx.currentTime + 0.05;
     while (this.nextTime < ctx.currentTime + LOOKAHEAD) {
       this.playStep(this.step, this.nextTime);
       this.nextTime += EIGHTH;
-      this.step = (this.step + 1) % (BARS.length * 8);
+      this.step = (this.step + 1) % 32;
+      if (this.step === 0) this.cycle++;
     }
   }
 
   playStep(step, t) {
-    const bar = Math.floor(step / 8);
-    const slot = step % 8;
     const mix = this.mix || CALM;
-    const human = () => (Math.random() - 0.5) * 0.012;
+    const chordIndex = Math.floor(step / 4);
+    const chord = CHORDS[chordIndex];
+    const human = () => (Math.random() - 0.5) * 0.014;
+    const on = (layer) => mix[layer] > 0.01;
 
-    // Tanpura: one string per beat
-    if (slot % 2 === 0 && mix.drone > 0.01) {
-      const string = TANPURA[slot / 2];
-      this.pluck(this.tanpura, string, t + human(), { gain: string === 38 ? 0.9 : 0.65, dest: 'drone', pan: (slot / 2 - 1.5) * 0.25, dur: 6 });
+    if (step % 4 === 0) {
+      if (on('bass')) this.cello(chord.bass, t, BEAT * 2);
+      if (on('pad')) this.strings(chord.strings, t, BEAT * 2, 'pad');
+      if (on('sparkle') && Math.random() < 0.55) this.celesta(chord.sparkle, t + EIGHTH * (Math.random() < 0.5 ? 0 : 1));
+      if (on('lead')) this.strings([COUNTER[this.cycle % 2][chordIndex] - 12], t, BEAT * 2, 'lead');
     }
+    if (on('arp')) this.piano(chord.arp[step % 4], t + human(), 0.34 + Math.random() * 0.06, EIGHTH * 3, 'arp');
 
-    // String pad: new chord each bar
-    if (slot === 0 && mix.pad > 0.01) this.padChord(BARS[bar].pad, t, BEAT * 4);
-
-    // Santoor / veena: a two-bar rhythmic motif over the current chord
-    if (mix.pluck > 0.01) {
-      if (slot === 0 && bar % 2 === 0) this.rhythm = pick(RHYTHMS);
-      if (slot === 0) this.motif = this.makeMotif(bar);
-      const midi = this.motif?.[slot];
-      const dense = mix.pluck;
-      const strong = slot === 0 || slot === 4;
-      if (midi && (strong ? dense > 0.15 : Math.random() < dense * 0.95)) {
-        this.pluck(this.santoor, midi, t + human(), {
-          gain: (strong ? 0.85 : 0.6) * (0.85 + Math.random() * 0.3),
-          dest: 'pluck',
-          pan: -0.25,
-          dur: 2.6,
-          gamaka: Math.random() < 0.18,
-        });
+    if (on('melody')) {
+      const [perChord, notes] = VARIATIONS[this.cycle % VARIATIONS.length];
+      const every = 4 / perChord; // eighth-steps per melody note
+      if (step % every === 0) {
+        const note = notes[chordIndex * perChord + (step % 4) / every];
+        this.piano(note, t + human(), 0.62 + Math.random() * 0.08, every * EIGHTH, 'melody');
       }
     }
-
-    // Bansuri: the theme, phrase by phrase
-    if (mix.flute > 0.01) {
-      for (const [b, beat, midi, beats] of THEME) {
-        if (b === bar && beat * 2 === slot) this.flute(midi, t, beats * BEAT); // theme beats fall on eighth notes
-      }
-    }
-
-    // Temple bells: a large bell at the top of each half-cycle, small chimes in between
-    if (mix.bells > 0.05) {
-      if (slot === 0 && (bar === 0 || bar === 4)) this.bell(midiHz(62) * 0.5, t, 1, 0.15);
-      else if (slot % 2 === 1 && Math.random() < 0.12 * mix.bells) this.bell(midiHz(pick([86, 90, 93])), t, 0.35, pick([-0.6, 0.6]));
-    }
-
-    // Mridangam-like pulse
-    if (mix.drum > 0.05 && DRUM[slot]) this.drum(DRUM[slot], t + human());
   }
 
-  makeMotif(bar) {
-    const tones = BARS[bar].tones;
-    const nearestTone = (deg) => {
-      let best = deg, bestD = Infinity;
-      for (let oct = -1; oct <= 2; oct++) {
-        for (const tone of tones) {
-          const cand = tone + oct * 7;
-          const d = Math.abs(cand - deg);
-          if (cand >= 3 && cand <= 12 && d < bestD) {
-            best = cand;
-            bestD = d;
-          }
-        }
-      }
-      return best;
-    };
-    let deg = this.lastDegree;
-    const notes = (this.rhythm || RHYTHMS[0]).map((on, i) => {
-      if (!on) return null;
-      if (i === 0 || i === 4) deg = nearestTone(deg + pick([-1, 0, 1]));
-      else deg = Math.min(12, Math.max(3, deg + pick([-2, -1, -1, 1, 1, 2])));
-      return degreeToMidi(deg);
+  /** Soft piano: slightly inharmonic partials, a detuned unison twin, gentle hammer. */
+  piano(midi, t, velocity, length, layer) {
+    const ctx = this.ctx;
+    const f = midiHz(midi);
+    const out = ctx.createGain();
+    out.gain.value = velocity * 0.45;
+    const tone = ctx.createBiquadFilter();
+    tone.type = 'lowpass';
+    tone.frequency.value = Math.min(9000, 1400 + velocity * 2600 + f * 1.5);
+    tone.Q.value = 0.3;
+    out.connect(tone).connect(this.layers[layer]);
+
+    const sustain = Math.max(1.4, 6.2 - (midi - 48) * 0.07);
+    const end = t + Math.min(sustain, length + 1.6); // let notes ring as if on the sustain pedal
+    const partials = [1, 0.4, 0.2, 0.1, 0.055, 0.03];
+    partials.forEach((amp, i) => {
+      const n = i + 1;
+      const osc = ctx.createOscillator();
+      osc.frequency.value = f * n * Math.sqrt(1 + 0.00035 * n * n);
+      const g = ctx.createGain();
+      decayEnvelope(g.gain, t, amp, sustain / (1 + i * 0.7), end);
+      osc.connect(g).connect(out);
+      osc.start(t);
+      osc.stop(end + 0.7);
     });
-    this.lastDegree = deg;
-    return notes;
+    const twin = ctx.createOscillator();
+    twin.frequency.value = f;
+    twin.detune.value = 1.6;
+    const tg = ctx.createGain();
+    decayEnvelope(tg.gain, t, 0.45, sustain, end);
+    twin.connect(tg).connect(out);
+    twin.start(t);
+    twin.stop(end + 0.7);
+    // felt hammer
+    const hammer = ctx.createBufferSource();
+    hammer.buffer = this.noise;
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = Math.min(6000, f * 4);
+    const hg = ctx.createGain();
+    hg.gain.setValueAtTime(0.05 * velocity, t);
+    hg.gain.exponentialRampToValueAtTime(0.0001, t + 0.04);
+    hammer.connect(bp).connect(hg).connect(out);
+    hammer.start(t, Math.random() * 3);
+    hammer.stop(t + 0.05);
   }
 
-  pan(value) {
-    const p = this.ctx.createStereoPanner ? this.ctx.createStereoPanner() : this.ctx.createGain();
-    if (p.pan) p.pan.value = value;
-    return p;
-  }
-
-  pluck(sample, midi, t, { gain = 0.7, dest, pan = 0, dur = 3, gamaka = false }) {
+  /** Warm string section: detuned saws, gentle vibrato, slow bow attack. */
+  strings(notes, t, length, layer) {
     const ctx = this.ctx;
-    const src = ctx.createBufferSource();
-    src.buffer = sample.buffer;
-    const rate = midiHz(midi) / sample.baseHz;
-    if (gamaka) {
-      // slide up into the note from a scale step below — a characteristic veena ornament
-      src.playbackRate.setValueAtTime(rate * 2 ** (-2 / 12), t);
-      src.playbackRate.exponentialRampToValueAtTime(rate, t + 0.12);
-    } else src.playbackRate.setValueAtTime(rate, t);
-    const stopAt = t + Math.min(dur / rate, 8);
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(gain, t);
-    g.gain.setTargetAtTime(0, stopAt - 0.3, 0.07); // fade before the end — no clicks
-    src.connect(g).connect(this.pan(pan)).connect(this.layers[dest]);
-    src.start(t);
-    src.stop(stopAt);
-  }
-
-  padChord(notes, t, length) {
-    const ctx = this.ctx;
+    const lead = layer === 'lead';
+    const attack = lead ? 0.22 : 0.45;
+    const release = lead ? 0.6 : 0.9;
     const filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
-    filter.frequency.value = 650 + (this.mix?.pad ?? 0.4) * 900;
-    filter.Q.value = 0.4;
+    filter.frequency.value = lead ? 2200 : 1300 + (this.mix?.pad ?? 0.5) * 700;
+    filter.Q.value = 0.5;
     const env = ctx.createGain();
     env.gain.setValueAtTime(0, t);
-    env.gain.linearRampToValueAtTime(1, t + 1.4);
-    env.gain.setValueAtTime(1, t + length);
-    env.gain.linearRampToValueAtTime(0, t + length + 2.4);
-    filter.connect(env).connect(this.layers.pad);
+    env.gain.linearRampToValueAtTime(1, t + attack);
+    env.gain.setValueAtTime(1, t + length - 0.05);
+    env.gain.linearRampToValueAtTime(0, t + length + release);
+    filter.connect(env).connect(this.layers[layer]);
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = lead ? 5.6 : 5.1;
+    const depth = ctx.createGain();
+    depth.gain.value = lead ? 7 : 3.5; // cents
+    lfo.connect(depth);
+    lfo.start(t);
+    lfo.stop(t + length + release + 0.1);
     for (const midi of notes) {
-      for (const detune of [-7, 7]) {
+      for (const detune of [-6, 6]) {
         const osc = ctx.createOscillator();
         osc.type = 'sawtooth';
         osc.frequency.value = midiHz(midi);
         osc.detune.value = detune;
+        depth.connect(osc.detune);
         const g = ctx.createGain();
-        g.gain.value = 0.11;
+        g.gain.value = lead ? 0.5 : 0.22;
         osc.connect(g).connect(filter);
         osc.start(t);
-        osc.stop(t + length + 2.6);
+        osc.stop(t + length + release + 0.1);
       }
     }
   }
 
-  flute(midi, t, length) {
+  /** Cello: the Canon's ground bass. */
+  cello(midi, t, length) {
     const ctx = this.ctx;
-    const f = midiHz(midi);
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 620;
     const env = ctx.createGain();
-    const attack = 0.12;
-    const release = Math.min(0.35, length * 0.4);
     env.gain.setValueAtTime(0, t);
-    env.gain.linearRampToValueAtTime(0.9, t + attack);
-    env.gain.setValueAtTime(0.9, t + Math.max(attack, length - release));
-    env.gain.linearRampToValueAtTime(0, t + length + 0.05);
-    const tone = ctx.createBiquadFilter();
-    tone.type = 'lowpass';
-    tone.frequency.value = 2600;
-    env.connect(tone).connect(this.pan(0.15)).connect(this.layers.flute);
-
-    const osc = ctx.createOscillator();
-    osc.type = 'sine';
-    // start a touch flat and lean into the note (a breathy bansuri attack)
-    osc.frequency.setValueAtTime(f * 2 ** (-0.35 / 12), t);
-    osc.frequency.exponentialRampToValueAtTime(f, t + 0.09);
-    const body = ctx.createOscillator();
-    body.type = 'triangle';
-    body.frequency.value = f;
-    const bodyGain = ctx.createGain();
-    bodyGain.gain.value = 0.18;
-    // vibrato that blooms on longer notes
-    const lfo = ctx.createOscillator();
-    lfo.frequency.value = 5.2;
-    const depth = ctx.createGain();
-    depth.gain.setValueAtTime(0, t);
-    depth.gain.linearRampToValueAtTime(f * 0.006, t + Math.min(0.6, length));
-    lfo.connect(depth);
-    depth.connect(osc.frequency);
-    depth.connect(body.frequency);
-    // breath
-    const breath = ctx.createBufferSource();
-    breath.buffer = this.noise;
-    const bp = ctx.createBiquadFilter();
-    bp.type = 'bandpass';
-    bp.frequency.value = f * 2;
-    bp.Q.value = 1.2;
-    const breathGain = ctx.createGain();
-    breathGain.gain.value = 0.05;
-    breath.connect(bp).connect(breathGain).connect(env);
-    osc.connect(env);
-    body.connect(bodyGain).connect(env);
-    const end = t + length + 0.1;
-    for (const node of [osc, body, lfo, breath]) {
-      node.start(t);
-      node.stop(end);
+    env.gain.linearRampToValueAtTime(1, t + 0.12);
+    env.gain.setValueAtTime(0.85, t + length - 0.1);
+    env.gain.linearRampToValueAtTime(0, t + length + 0.45);
+    filter.connect(env).connect(this.layers.bass);
+    for (const [ratio, gain, type] of [[1, 0.6, 'sawtooth'], [0.5, 0.5, 'sine'], [1, 0.25, 'triangle']]) {
+      const osc = ctx.createOscillator();
+      osc.type = type;
+      osc.frequency.value = midiHz(midi) * ratio;
+      const g = ctx.createGain();
+      g.gain.value = gain;
+      osc.connect(g).connect(filter);
+      osc.start(t);
+      osc.stop(t + length + 0.5);
     }
   }
 
-  bell(freq, t, level, pan) {
+  /** Celesta: a high, bell-like sparkle on the chord changes. */
+  celesta(midi, t) {
     const ctx = this.ctx;
+    const f = midiHz(midi);
     const out = ctx.createGain();
-    out.gain.value = level;
-    out.connect(this.pan(pan)).connect(this.layers.bells);
-    const partials = [[1, 1, 4.5], [2.0, 0.55, 3.2], [2.76, 0.4, 2.4], [5.4, 0.22, 1.3], [8.93, 0.12, 0.8]];
-    for (const [ratio, amp, decay] of partials) {
+    out.gain.value = 0.5;
+    out.connect(this.layers.sparkle);
+    for (const [ratio, amp, decay] of [[1, 1, 1.8], [4, 0.22, 0.6], [6.8, 0.06, 0.3]]) {
       const osc = ctx.createOscillator();
-      osc.frequency.value = freq * ratio;
+      osc.frequency.value = f * ratio;
       const g = ctx.createGain();
       g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(amp * 0.5, t + 0.004);
+      g.gain.linearRampToValueAtTime(amp, t + 0.003);
       g.gain.exponentialRampToValueAtTime(0.0001, t + decay);
       osc.connect(g).connect(out);
       osc.start(t);
@@ -442,31 +350,31 @@ export class WeddingScore {
     }
   }
 
-  drum(kind, t) {
+  /** Continuous, breathing surf (only heard in the beach scenario). */
+  startSurf() {
     const ctx = this.ctx;
-    const low = kind === 'L';
-    const osc = ctx.createOscillator();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(low ? 130 : 320, t);
-    osc.frequency.exponentialRampToValueAtTime(low ? 78 : 240, t + 0.18);
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0, t);
-    g.gain.linearRampToValueAtTime(low ? 0.9 : 0.35, t + 0.005);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + (low ? 0.45 : 0.16));
-    osc.connect(g).connect(this.layers.drum);
-    osc.start(t);
-    osc.stop(t + 0.5);
-    // the skin's slap
-    const slap = ctx.createBufferSource();
-    slap.buffer = this.noise;
-    const hp = ctx.createBiquadFilter();
-    hp.type = 'bandpass';
-    hp.frequency.value = low ? 900 : 2400;
-    const sg = ctx.createGain();
-    sg.gain.setValueAtTime(low ? 0.12 : 0.18, t);
-    sg.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
-    slap.connect(hp).connect(sg).connect(this.layers.drum);
-    slap.start(t, Math.random());
-    slap.stop(t + 0.06);
+    const src = ctx.createBufferSource();
+    src.buffer = this.noise;
+    src.loop = true;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 520;
+    const swell = ctx.createGain();
+    swell.gain.value = 0.55;
+    const lfoA = ctx.createOscillator();
+    lfoA.frequency.value = 0.085;
+    const lfoB = ctx.createOscillator();
+    lfoB.frequency.value = 0.137;
+    const aGain = ctx.createGain();
+    aGain.gain.value = 0.3;
+    const bGain = ctx.createGain();
+    bGain.gain.value = 0.15;
+    const fGain = ctx.createGain();
+    fGain.gain.value = 260;
+    lfoA.connect(aGain).connect(swell.gain);
+    lfoB.connect(bGain).connect(swell.gain);
+    lfoA.connect(fGain).connect(lp.frequency);
+    src.connect(lp).connect(swell).connect(this.layers.surf);
+    for (const node of [src, lfoA, lfoB]) node.start();
   }
 }

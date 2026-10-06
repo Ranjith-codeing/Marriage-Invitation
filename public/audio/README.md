@@ -1,10 +1,15 @@
 # Background music
 
-The site already has music: an original **background score** composed and played live in the browser
-(`src/audio/score.js`), in raga Kalyani: tanpura drone, santoor/veena melodies, a bansuri love theme,
-strings, temple bells and a soft mridangam pulse. It follows the film, quiet in the prologue, fuller at
-the mandapam, the flute theme at "A new chapter begins…", softer while guests read the details. There
-are no audio files to download and no licensing concerns.
+The site already has music: an original arrangement of **Pachelbel's Canon in D** (the composition is
+public domain) for soft piano, warm strings, cello and celesta, synthesised live in the browser
+(`src/audio/score.js`). It follows the film:
+- the Canon's bass and arpeggios open the film
+- the melody moves through the variations as the story plays
+- the strings join in counter-melody at "A new chapter begins…"
+- the music settles while guests read
+- gentle surf plays underneath on the beach scene
+
+There are no audio files to download and no licensing concerns.
 
 ## Adding your own song (optional)
 
@@ -20,5 +25,5 @@ public/audio/wedding-music.mp3
 - The site is public, so only use music you have the right to publish (your own recording,
   a licensed track, or royalty-free music).
 
-Music never autoplays with sound. It starts from **Open the invitation ♫** or the **Music** button,
-and the choice is remembered for the browser session.
+Music never autoplays with sound. It starts from **Open the invitation ♫**, the **Music** button or
+**Settings**, and the choice is remembered for the browser session.

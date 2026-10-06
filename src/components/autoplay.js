@@ -6,6 +6,8 @@
  * A floating Play / Pause button lets them hand control back at any time.
  */
 
+import { onNextFrame } from '../utils/frame.js';
+
 // Scroll speed per scene, in viewport-heights per second
 const PACE = {
   hero: 0.45,
@@ -30,7 +32,7 @@ export function initAutoplay({ reducedMotion }) {
   const label = control.querySelector('[data-autoplay-label]');
 
   let playing = false;
-  let raf = 0;
+  let cancelFrame = () => {};
   let last = 0;
   let speed = 0;
   let y = 0;
@@ -74,9 +76,9 @@ export function initAutoplay({ reducedMotion }) {
 
   const step = (now) => {
     if (!playing) return;
-    const dt = Math.min(0.05, (now - last) / 1000);
+    const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
     last = now;
-    raf = requestAnimationFrame(step);
+    cancelFrame = onNextFrame(step);
 
     if (holdLeft > 0) {
       holdLeft -= dt;
@@ -115,24 +117,24 @@ export function initAutoplay({ reducedMotion }) {
       if (h.y < y - 2) h.done = true;
     });
     playing = true;
-    speed = 0;
+    speed = (PACE[sceneAt(y)] ?? 0.32) * innerHeight * 0.5; // visible motion from the very first frame
     holdLeft = 0;
     last = performance.now();
-    cancelAnimationFrame(raf);
-    raf = requestAnimationFrame(step);
+    cancelFrame();
+    cancelFrame = onNextFrame(step);
     setUI('playing');
   };
 
   const pause = () => {
     if (!playing) return;
     playing = false;
-    cancelAnimationFrame(raf);
+    cancelFrame();
     setUI('paused');
   };
 
   const finish = () => {
     playing = false;
-    cancelAnimationFrame(raf);
+    cancelFrame();
     setUI('ended');
   };
 
@@ -148,7 +150,7 @@ export function initAutoplay({ reducedMotion }) {
     else if (control.dataset.state === 'ended') {
       window.scrollTo(0, 0);
       holds = [];
-      requestAnimationFrame(play);
+      onNextFrame(play);
     } else play();
   });
 

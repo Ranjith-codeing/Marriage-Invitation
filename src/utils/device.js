@@ -38,14 +38,14 @@ export function detectQuality() {
 export const QUALITY = {
   high: {
     dpr: 1.75, post: true, shadows: true, lampLights: 3, envEvery: 0.35,
-    grass: 70000, flowers: 1, petals: 900, shower: 380, stars: 2400, fireflies: 140, butterflies: 12, lanterns: 40, clouds: 10,
+    grass: 70000, flowers: 1, petals: 900, shower: 380, stars: 2400, fireflies: 140, butterflies: 12, lanterns: 40, birds: 12,
   },
   medium: {
     dpr: 1.5, post: false, shadows: false, lampLights: 1, envEvery: 1.2,
-    grass: 22000, flowers: 0.7, petals: 450, shower: 220, stars: 1400, fireflies: 80, butterflies: 8, lanterns: 26, clouds: 8,
+    grass: 22000, flowers: 0.7, petals: 450, shower: 220, stars: 1400, fireflies: 80, butterflies: 8, lanterns: 26, birds: 8,
   },
   low: {
     dpr: 1.15, post: false, shadows: false, lampLights: 0, envEvery: 2.5,
-    grass: 6000, flowers: 0.45, petals: 200, shower: 120, stars: 800, fireflies: 40, butterflies: 4, lanterns: 14, clouds: 6,
+    grass: 6000, flowers: 0.45, petals: 200, shower: 120, stars: 800, fireflies: 40, butterflies: 4, lanterns: 14, birds: 5,
   },
 };

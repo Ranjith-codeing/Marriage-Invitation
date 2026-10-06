@@ -5,52 +5,45 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 import { QUALITY } from '../utils/device.js';
+import { onNextFrame } from '../utils/frame.js';
 import { clamp } from '../utils/math.js';
 import { Director } from './Director.js';
+import { buildKeyframes } from './keyframes.js';
 import { Couple } from './characters/Couple.js';
 import { DofPass } from './post/DofPass.js';
+import { createWorld } from './worlds/index.js';
 import { wind } from './world/wind.js';
 import { createSky } from './world/Sky.js';
-import { createGround } from './world/Ground.js';
-import { createHorizon } from './world/Horizon.js';
-import { createGrass } from './world/Grass.js';
-import { createGarden } from './world/Garden.js';
-import { createMandapam, PLATFORM } from './world/Mandapam.js';
-import { createFairyLights } from './world/FairyLights.js';
-import { createButterflies } from './world/Butterflies.js';
+import { PLATFORM } from './world/Mandapam.js';
 import { createNightSky } from './world/NightSky.js';
 import { createLanterns } from './world/Lanterns.js';
 import { createPetals } from './world/Petals.js';
+import { createBirds } from './world/Birds.js';
 
-// Yield to the browser between build steps (falls back to a timer if the tab is in the background)
-const nextFrame = () =>
-  new Promise((r) => {
-    const t = setTimeout(r, 50);
-    requestAnimationFrame(() => {
-      clearTimeout(t);
-      r();
-    });
-  });
+// Yield to the browser between build steps (falls back to a timer if frames are paused)
+const nextFrame = () => new Promise((r) => onNextFrame(() => r(), 50));
 
 const SHOWER_COLOURS = ['#b3123a', '#d23a5c', '#f29a1d', '#f7c531', '#fffaf1', '#e8879a'];
 
 /**
- * The cinematic WebGL layer behind the page. Owns the renderer, the world,
- * the couple, the camera and post-processing; reads film time from the
- * ScrollTimeline every frame and renders the interpolated scene.
+ * The cinematic WebGL layer behind the page. Owns the renderer, the current
+ * world (temple garden or beach), the couple, the camera and post-processing;
+ * reads film time from the ScrollTimeline every frame and renders the scene.
  */
 export class Experience {
-  constructor(canvas, { quality, timeline, onFrame }) {
+  constructor(canvas, { quality, timeline, scenario = 'garden', onFrame }) {
     this.canvas = canvas;
     this.tier = quality;
     this.q = { ...QUALITY[quality] };
     this.timeline = timeline;
+    this.scenario = scenario;
     this.onFrame = onFrame;
     this.pointer = new THREE.Vector2();
     this.pointerSmooth = new THREE.Vector2();
     this.clock = new THREE.Clock(false);
     this.focus = new THREE.Vector3();
     this.coupleCentre = new THREE.Vector3(0, PLATFORM + 1.0, 0);
+    this.sunScreen = new THREE.Vector3();
     this.running = false;
     this.frameTimes = [];
     this.degradeStage = 0;
@@ -58,7 +51,7 @@ export class Experience {
     this.envSignature = null;
   }
 
-  /** Builds the world (yielding between steps so the loader stays smooth) and loads the couple. */
+  /** Builds everything (yielding between steps so the loader stays smooth) and loads the couple. */
   async load(onProgress = () => {}) {
     const { q } = this;
     const renderer = (this.renderer = new THREE.WebGLRenderer({
@@ -95,29 +88,19 @@ export class Experience {
     this.fill = new THREE.DirectionalLight('#ffe6cc', 0.4); // soft front fill
     scene.add(this.hemi, this.sun, this.sun.target, this.fill, this.fill.target);
 
-    // Sky, ground, horizon, clouds
     this.sky = createSky({ octaves: this.tier === 'high' ? 5 : this.tier === 'medium' ? 4 : 3 });
-    this.ground = createGround();
-    this.horizon = createHorizon();
-    scene.add(this.sky.mesh, this.ground.group, this.horizon.group);
+    scene.add(this.sky.mesh);
     this.setupEnvironment();
     onProgress(0.12, 'scene');
     await nextFrame();
 
-    this.grass = createGrass({ count: q.grass });
-    scene.add(this.grass.group);
-    onProgress(0.2, 'scene');
+    // The chosen world: temple garden or beach
+    this.world = createWorld(this.scenario, q);
+    scene.add(this.world.group);
+    onProgress(0.36, 'scene');
     await nextFrame();
-    this.garden = createGarden({ density: q.flowers });
-    scene.add(this.garden.group);
-    onProgress(0.3, 'scene');
-    await nextFrame();
-    this.mandapam = createMandapam({ lights: q.lampLights });
-    this.fairy = createFairyLights({ crowns: this.garden.crowns, eaves: this.mandapam.eaves });
-    this.butterflies = createButterflies({ count: q.butterflies });
-    scene.add(this.mandapam.group, this.fairy.group, this.butterflies.group);
-    onProgress(0.4, 'scene');
-    await nextFrame();
+
+    // Shared layers
     this.night = createNightSky({ stars: q.stars, fireflies: q.fireflies });
     this.lanterns = createLanterns({ count: q.lanterns });
     this.petals = createPetals({ count: q.petals });
@@ -131,7 +114,9 @@ export class Experience {
       seed: 7,
       param: 'shower',
     });
-    scene.add(this.night.group, this.lanterns.group, this.petals.points, this.shower.points);
+    this.birds = createBirds({ count: q.birds });
+    this.birds.setKind(this.scenario);
+    scene.add(this.night.group, this.lanterns.group, this.petals.points, this.shower.points, this.birds.group);
     onProgress(0.48, 'scene');
     await nextFrame();
 
@@ -140,7 +125,7 @@ export class Experience {
     const coupleMode = await this.couple.load((p) => onProgress(0.48 + p * 0.42, 'models'));
     scene.add(this.couple.group);
 
-    this.director = new Director(this.timeline);
+    this.director = new Director(this.timeline, buildKeyframes(this.scenario));
     this.setupPost();
     this.resize();
     window.addEventListener('resize', () => this.resize(), { passive: true });
@@ -153,6 +138,26 @@ export class Experience {
     this.render();
     onProgress(1, 'ready');
     return { coupleMode };
+  }
+
+  /** Swap the world live (Settings → scene). Resolves once the new world is on screen. */
+  async setScenario(name) {
+    if (name === this.scenario || !this.world) return;
+    this.scenario = name;
+    const old = this.world;
+    this.world = createWorld(name, this.q);
+    this.scene.remove(old.group);
+    old.dispose();
+    this.scene.add(this.world.group);
+    this.world.setPixelRatio(this.renderer.getPixelRatio());
+    this.birds.setKind(name);
+    this.director.setKeyframes(buildKeyframes(name));
+    this.director.snap(this.timeline.t);
+    this.applyState(this.director.state, 0, this.clock.elapsedTime);
+    this.renderer.compile(this.scene, this.camera);
+    this.bakeEnvironment(true);
+    this.render();
+    await nextFrame();
   }
 
   /** Image-based lighting: the sky is re-baked into an environment map as its colours change. */
@@ -190,7 +195,7 @@ export class Experience {
     });
     const composer = (this.composer = new EffectComposer(this.renderer, target));
     composer.addPass(new RenderPass(this.scene, this.camera));
-    this.dof = new DofPass(this.camera);
+    this.dof = new DofPass(this.camera); // depth of field + god rays
     composer.addPass(this.dof);
     this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), 0.2, 0.5, 0.9);
     composer.addPass(this.bloom);
@@ -205,7 +210,7 @@ export class Experience {
     this.composer?.setPixelRatio(pr);
     this.composer?.setSize(w, h);
     this.camera.aspect = w / h;
-    for (const layer of [this.night, this.petals, this.shower, this.fairy, this.lanterns]) layer.setPixelRatio(pr);
+    for (const layer of [this.night, this.petals, this.shower, this.lanterns, this.world]) layer.setPixelRatio(pr);
     this.timeline.measure();
   }
 
@@ -219,7 +224,7 @@ export class Experience {
     this.clock.start();
     const loop = () => {
       if (!this.running) return;
-      this.raf = requestAnimationFrame(loop);
+      this.cancelFrame = onNextFrame(loop);
       this.tick();
     };
     loop();
@@ -227,7 +232,7 @@ export class Experience {
 
   stop() {
     this.running = false;
-    cancelAnimationFrame(this.raf);
+    this.cancelFrame?.();
   }
 
   tick() {
@@ -263,18 +268,16 @@ export class Experience {
       camera.updateProjectionMatrix();
     }
 
-    // Atmosphere & light
+    // Atmosphere & light: warm key light from the side + cool, lower ambient
     scene.fog.color.copy(s.fogColor);
     scene.fog.density = s.fogDensity;
     renderer.toneMappingExposure = s.exposure * 0.92;
-    // Warm key light from the side + cool, lower ambient = depth and colour contrast
     scene.environmentIntensity = 0.3 * (1 - s.night * 0.55) + s.lamp * 0.04;
     this.hemi.intensity = s.hemi * 0.35;
     this.hemi.color.copy(s.skyTop).offsetHSL(0, 0, 0.12);
     this.hemi.groundColor.copy(s.skyBottom).multiplyScalar(0.6);
     this.sun.color.copy(s.sunColor);
     this.sun.intensity = s.sun * 1.15 + s.night * 0.4; // moonlight in the final scene
-    // Low sun from the left, slightly behind: lit left faces, long shadows across the path
     this.sun.position.set(-11, 7.5 - s.night * 2, z - 3);
     this.sun.target.position.set(0, 0, z);
     this.fill.position.set(camera.position.x * 0.5 + 2, 4, camera.position.z + 2);
@@ -282,22 +285,28 @@ export class Experience {
     this.fill.intensity = 0.1 + s.hemi * 0.15 + s.lamp * 0.12;
 
     this.sky.update(s, camera, time);
-    this.ground.update(s);
-    this.horizon.update(s);
-    this.garden.update(s);
-    this.mandapam.update(s, time);
-    this.fairy.update(s, time);
-    this.butterflies.update(s, time);
+    this.world.update(s, time, dt, camera);
     this.night.update(s, time, camera);
     this.lanterns.update(s, time, dt);
     this.petals.update(s, time, camera, this.focus);
     this.shower.update(s, time, camera, this.focus);
+    this.birds.update(s, time);
     this.couple.update(dt, s, time, camera);
 
     if (this.bloom) this.bloom.strength = 0.12 + s.lamp * 0.08 + s.night * 0.15;
     if (this.dof) {
       this.dof.uniforms.focus.value = camera.position.distanceTo(this.coupleCentre);
       this.dof.uniforms.strength.value = s.dof;
+    }
+    if (this.dof) {
+      // God rays: where is the sun on screen? Fade the beams as it leaves the frame or sets.
+      const u = this.dof.uniforms;
+      this.sunScreen.copy(this.sky.sunDir).multiplyScalar(400).add(camera.position).project(camera);
+      const inFront = this.sunScreen.z < 1;
+      const edge = Math.max(Math.abs(this.sunScreen.x), Math.abs(this.sunScreen.y));
+      u.sunPos.value.set(this.sunScreen.x * 0.5 + 0.5, this.sunScreen.y * 0.5 + 0.5);
+      u.raysStrength.value = inFront ? clamp(s.sun / 3) * (1 - s.night) * (1 - s.dim) * clamp(1.8 - edge) * 0.9 : 0;
+      u.raysTint.value.copy(s.sunColor);
     }
   }
 
@@ -317,11 +326,9 @@ export class Experience {
     this.degradeStage++;
     if (this.degradeStage === 1 && this.composer) {
       this.composer = this.bloom = this.dof = null; // drop post-processing first
-    } else if (this.degradeStage <= 2) {
+    } else {
       this.renderer.setPixelRatio(clamp(this.renderer.getPixelRatio() * 0.8, 0.75, 2));
       this.resize();
-    } else {
-      this.grass.group.visible = false;
     }
     console.info(`[scene] Reduced render quality (stage ${this.degradeStage}) for smoother playback.`);
   }

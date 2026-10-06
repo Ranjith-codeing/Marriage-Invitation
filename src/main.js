@@ -8,6 +8,8 @@ import { initGallery } from './components/gallery.js';
 import { initCountdown } from './components/countdown.js';
 import { initCursorGlow } from './components/cursor.js';
 import { initAutoplay } from './components/autoplay.js';
+import { initSettings } from './components/settings.js';
+import { pickScenario, rememberScenario } from './scenes/worlds/scenarios.js';
 import { ScrollTimeline } from './animations/scrollTimeline.js';
 import { prefersReducedMotion, supportsWebGL, detectQuality } from './utils/device.js';
 
@@ -38,6 +40,8 @@ async function boot() {
   root.classList.add(cinematic ? 'is-cinematic' : 'is-static');
   if (!reducedMotion) root.classList.add('motion');
   makeGrain();
+  const scenario = pickScenario(); // temple garden or beach — random per visit unless chosen in Settings
+  root.dataset.scenario = scenario;
 
   const started = performance.now();
   const loader = new Loader({ reducedMotion });
@@ -56,6 +60,7 @@ async function boot() {
     return name;
   };
   const music = initMusic({ getScene });
+  music.setScenario(scenario);
 
   const fontsReady = document.fonts?.ready.catch(() => {}) ?? Promise.resolve();
   let experience = null;
@@ -73,6 +78,7 @@ async function boot() {
     experience = new Experience(document.getElementById('scene'), {
       quality: detectQuality(),
       timeline,
+      scenario,
       onFrame: (s) => (dim.style.opacity = s.dim.toFixed(3)),
     });
     if (import.meta.env.DEV) window.__experience = experience; // debugging aid (dev server only)
@@ -100,8 +106,23 @@ async function boot() {
   loader.hide();
   experience?.start();
   initAutoplay({ reducedMotion });
+  initSettings({
+    scenario,
+    canSwitchScene: !!experience,
+    music,
+    onScene: async (name) => {
+      root.classList.add('is-switching');
+      await new Promise((r) => setTimeout(r, 650)); // fade to dark first
+      await experience.setScenario(name);
+      music.setScenario(name);
+      root.dataset.scenario = name;
+      rememberScenario(name);
+      root.classList.remove('is-switching');
+    },
+  });
 
   if (reveals) {
+    reveals.keepTickerAlive();
     initCursorGlow((x, y) => experience?.setPointer(x, y));
     reveals.initReveals();
     reveals.initTilt();

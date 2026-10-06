@@ -110,5 +110,13 @@ export function initMusic({ getScene }) {
     else if (song) document.hidden ? song.pause() : song.play().catch(() => {});
   });
 
-  return { available: true, play, preferred: sessionStorage.getItem(KEY) === 'on' };
+  return {
+    available: true,
+    play,
+    pause,
+    isPlaying: () => playing,
+    toggle: () => (playing ? pause() : play()),
+    setScenario: (name) => score.setScenario(name),
+    preferred: sessionStorage.getItem(KEY) === 'on',
+  };
 }

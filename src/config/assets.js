@@ -62,7 +62,7 @@ export const couplePhoto = {
 export const audio = {
   music: 'audio/wedding-music.mp3',
   volume: 0.55, // song volume
-  scoreVolume: 0.75, // built-in score volume
+  scoreVolume: 0.5, // built-in score volume
   default: 'score', // 'score' | 'song' (song only if the file exists)
 };
 

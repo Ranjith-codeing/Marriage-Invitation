@@ -24,7 +24,7 @@
     <style>
       html, body { margin: 0; background: #0e090c; }
       .loader { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: radial-gradient(ellipse at 50% 60%, #2a1a1f 0%, #0e090c 70%); color: #f3e9d8; font-family: 'Cormorant Garamond', Georgia, serif; text-align: center; transition: opacity 1.2s ease, visibility 1.2s; }
-      .loader.is-done { opacity: 0; visibility: hidden; }
+      .loader.is-done { opacity: 0; visibility: hidden; pointer-events: none; }
       .loader__inner { padding: 24px; max-width: 520px; }
       .loader__monogram { width: 92px; height: 92px; margin: 0 auto 1.4rem; opacity: 0; animation: loaderIn 1.4s 0.1s ease forwards; }
       .loader__monogram circle { fill: none; stroke: #d8b56a; stroke-dasharray: 360; stroke-dashoffset: 360; animation: ringDraw 2.4s 0.2s cubic-bezier(.65,0,.35,1) forwards; }
@@ -63,6 +63,7 @@
     <div class="vignette" aria-hidden="true"></div>
     <div class="cursor-glow" aria-hidden="true"></div>
     <div class="grain" aria-hidden="true"></div>
+    <div class="scene-switch" aria-hidden="true"></div>
 
     <div id="app"></div>
 

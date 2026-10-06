@@ -19,7 +19,11 @@ export const PALETTE = {
 
 const cache = new Map();
 const cached = (key, build) => {
-  if (!cache.has(key)) cache.set(key, build());
+  if (!cache.has(key)) {
+    const geometry = build();
+    geometry.userData.shared = true; // used by several worlds — never disposed with one of them
+    cache.set(key, geometry);
+  }
   return cache.get(key);
 };
 

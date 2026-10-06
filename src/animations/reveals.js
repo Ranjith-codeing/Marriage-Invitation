@@ -2,7 +2,24 @@ import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { SplitText } from 'gsap/SplitText';
 
+import { framesAreLive } from '../utils/frame.js';
+
 gsap.registerPlugin(ScrollTrigger, SplitText);
+
+/** Keep GSAP ticking where animation frames are paused (e.g. embedded previews). */
+export function keepTickerAlive() {
+  let manual = 0;
+  const check = async () => {
+    const live = await framesAreLive(300);
+    if (!live && !manual) manual = setInterval(() => gsap.ticker.tick(), 16); // time-based, so no speed-up
+    if (live && manual) {
+      clearInterval(manual);
+      manual = 0;
+    }
+  };
+  check();
+  setInterval(check, 2000);
+}
 
 /** Opening title sequence — the first seconds after the curtain rises. */
 export function playHeroIntro() {

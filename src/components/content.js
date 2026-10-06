@@ -264,6 +264,9 @@ function finale() {
 function controls() {
   return `
   <div class="controls">
+    <button type="button" class="control control--settings" data-settings-toggle aria-expanded="false" aria-controls="settings-panel" aria-label="Settings">
+      <svg class="control__gear" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.4" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M12 2.6v2.3M12 19.1v2.3M2.6 12h2.3M19.1 12h2.3M5.4 5.4l1.6 1.6M17 17l1.6 1.6M5.4 18.6 7 17M17 7l1.6-1.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </button>
     <button type="button" class="control control--story" data-autoplay-control hidden aria-pressed="false">
       <span class="control__glyph" aria-hidden="true"></span>
       <span class="control__label" data-autoplay-label>Play story</span>
@@ -274,6 +277,20 @@ function controls() {
       <span class="control__label" data-music-label>Music</span>
     </button>
     <button type="button" class="control control--top" data-back-to-top aria-label="Back to top" hidden>↑</button>
+  </div>
+  <div class="settings" id="settings-panel" role="dialog" aria-label="Settings" hidden>
+    <div class="settings__head">
+      <p class="settings__title">Settings</p>
+      <button type="button" class="settings__close" data-settings-close aria-label="Close settings">×</button>
+    </div>
+    <div class="setting">
+      <p class="setting__label" id="setting-scene-label">Wedding scene</p>
+      <div class="segments" role="radiogroup" aria-labelledby="setting-scene-label" data-setting-scene></div>
+    </div>
+    <div class="setting setting--row">
+      <p class="setting__label" id="setting-music-label">Background music</p>
+      <button type="button" class="switch" role="switch" aria-checked="false" aria-labelledby="setting-music-label" data-setting-music><span class="switch__knob"></span></button>
+    </div>
   </div>`;
 }
 

@@ -1,6 +1,11 @@
 # Ranjith R & Jayachitra S — Wedding Invitation
 
-A cinematic, scroll-driven 3D wedding invitation. As the guest scrolls, the camera travels down a golden-hour garden path: wind-swept grass, coconut palms, butterflies, and flower beds of roses, jasmine and marigolds that bloom as you pass under the floral arches. It arrives at a South Indian mandapam that assembles itself, where Ranjith and Jayachitra stand in their wedding attire under a silk canopy. Petals shower over them, and the film ends under a moonlit sky as glowing lanterns rise.
+A cinematic, scroll-driven 3D wedding invitation with **two wedding scenes**, one chosen at random on each visit (switchable in **Settings**):
+
+- **Temple garden:** a golden-hour garden path with wind-swept grass, coconut palms, butterflies and flower beds of roses, jasmine and marigolds that bloom as you pass under floral arches, leading to a South Indian mandapam that assembles itself, with a temple gopuram on the horizon.
+- **Beach:** a teak boardwalk across the sand between flower pedestals and bamboo torches, toward a pavilion with fluttering white drapes, with the sun setting over the sea, waves washing the shore, seagulls overhead and a lighthouse sweeping the bay at night.
+
+Either way, Ranjith and Jayachitra stand together in their wedding attire, petals shower over them, and the film ends under a moonlit sky as glowing lanterns rise.
 
 **Live site:** https://ranjith-codeing.github.io/Marriage-Invitation/ (once GitHub Pages is enabled; see *Deploying to GitHub Pages*).
 
@@ -97,6 +102,15 @@ These models need a separate 3D step: an image-to-3D tool or a 3D artist, plus r
 
 ---
 
+## Scenes & Settings
+
+Each visit picks the **temple garden** or **beach** scene at random. The **⚙ Settings** button (bottom-right) lets guests switch scenes, with a soft fade, and turn the music on or off. Their choice is kept for the session.
+
+- Link straight to a scene with `?scene=garden` or `?scene=beach`.
+- The scenes share the same camera choreography; each has its own light and colour (`PALETTES` in [`src/scenes/keyframes.js`](src/scenes/keyframes.js)) and its own world ([`src/scenes/worlds/index.js`](src/scenes/worlds/index.js)).
+
+---
+
 ## Guided story (auto-play)
 
 **Enter Our Story** plays the film for the guest. It scrolls at a cinematic pace set per scene (slower for the emotional moments), glides into and pauses on the invitation card, story, celebrations and venues so they can be read, and finishes at the final night scene. It takes about a minute and a half.
@@ -110,14 +124,12 @@ These models need a separate 3D step: an image-to-3D tool or a 3D artist, plus r
 
 ## Music
 
-The site has an original **background score**, composed and synthesised live in the browser ([`src/audio/score.js`](src/audio/score.js)), so there are no audio files to download and no licensing concerns. It's in raga Kalyani, the auspicious raga associated with weddings, with tonic Sa = D:
+The background score is an original arrangement of **Pachelbel's Canon in D**, the classic wedding piece (the composition is public domain), for soft piano, warm strings, cello and celesta in a concert-hall reverb. It's synthesised live in the browser ([`src/audio/score.js`](src/audio/score.js)), so there's nothing to download and no licensing concern.
 
-- **Tanpura** drone (plucked Pa–Sa–Sa–Sa strings), **santoor/veena** melodies with gamaka slides, a **bansuri** flute carrying the love theme, warm **strings**, **temple bells** and a soft **mridangam** pulse, all in a concert-hall reverb.
-- **It follows the film:** quiet and mysterious in the prologue, plucked melodies in the garden, bells and drums at the mandapam, the full flute theme at "A new chapter begins…", softer while guests read the details, and a warm night finale. The per-scene mix is the `SCENE_MIX` table in `score.js`.
+- **It follows the film.** The Canon's ground bass and piano arpeggios open the film. The melody enters in the prologue and moves through the variations (the theme, the descending line, flowing quarters, cascading eighths). The strings swell into counter-melody at "A new chapter begins…", and the music settles while guests read. In the beach scene, gentle surf breathes underneath. The per-scene mix is the `SCENE_MIX` table in `score.js`.
+- **Your own song (optional):** add `public/audio/wedding-music.mp3`, and the music control shows a **Score / Song** switch (`audio.default` in `src/config/assets.js` picks which plays first). Only publish music you have the rights to.
 
-**Your own song (optional):** add `public/audio/wedding-music.mp3`, and the music control shows a **Score / Song** switch (`audio.default` in `src/config/assets.js` picks which plays first). Only publish music you have the rights to.
-
-Nothing ever autoplays with sound. Music starts from **Open the invitation ♫** or the **Music** button, and the choice is remembered for the session.
+Nothing ever autoplays with sound. Music starts from **Open the invitation ♫**, the **Music** button or **Settings**, and the choice is remembered for the session.
 
 ---
 
@@ -151,7 +163,7 @@ src/
 │   └── assets.js            asset paths, model/photo/music settings
 ├── data/                    public-asset manifest helpers, gallery captions
 ├── audio/score.js           the generative background score (Web Audio)
-├── components/              DOM: content renderer, loader, nav, guided auto-play, music, gallery, countdown + calendar, cursor glow
+├── components/              DOM: content renderer, loader, nav, guided auto-play, settings, music, gallery, countdown + calendar, cursor glow
 ├── animations/
 │   ├── scrollTimeline.js    scroll position → continuous "film time"
 │   └── reveals.js           GSAP ScrollTrigger + SplitText reveals (letter-by-letter names, word captions)
@@ -159,18 +171,19 @@ src/
 │   ├── Experience.js        renderer, sky-baked image lighting, post-processing, render loop, adaptive quality
 │   ├── Director.js          monotone-spline keyframe interpolation + cinematic smoothing
 │   ├── keyframes.js         the choreography: camera path, light, atmosphere, story beats per section
-│   ├── post/DofPass.js      single-pass bokeh depth of field
+│   ├── worlds/              the two scenes (garden, beach): composition, random pick, live switching
+│   ├── post/                bokeh depth of field, god rays (sunbeams)
 │   ├── characters/          PhotoCouple (cutout + floral border), GLBCharacter (models), loader
-│   └── world/               Sky, Clouds, Horizon (gopuram), Ground, Grass, Garden, flora (rose/jasmine/
-│                            marigold geometry), wind (GPU sway), Mandapam, FairyLights, Butterflies,
-│                            NightSky, Lanterns, Petals
+│   └── world/               Sky (shader clouds), Ground, Grass, Garden, Palms, Mandapam, Horizon (gopuram),
+│                            Ocean, BeachGround, Pavilion, AisleDecor, BeachHorizon (lighthouse), flora,
+│                            wind (GPU sway), FairyLights, Butterflies, Birds, NightSky, Lanterns, Petals
 ├── utils/                   device/quality detection, math, procedural canvas textures
 └── styles/main.css
 ```
 
 **How the film works:** every page section has a `data-scene` name. `ScrollTimeline` turns the scroll position into a continuous value, and `Director` interpolates [`keyframes.js`](src/scenes/keyframes.js) at that value with a monotone cubic spline, so the camera glides through every beat instead of stopping at each one. It drives the camera orbit, sky colours, fog, sun, lamps, how far the garden has bloomed, how much of the mandapam is built, depth of field, the petal shower and the lantern release, and eases toward the result every frame, so even fast scrolling looks smooth. To re-choreograph a shot, edit a keyframe.
 
-**Rendering:** the sky is re-baked into an environment map as its colours change, so brass, gold and the marble floor reflect the sunset and the night. A warm side-lit key light and cool ambient light give depth. On capable devices a post-processing chain adds MSAA anti-aliasing, cinematic depth of field (on the close-ups) and bloom. Grass, palm fronds, bushes, flowers, garlands and the silk canopy all sway in one coherent GPU wind, and a fine film grain finishes the frame.
+**Rendering:** the sky is re-baked into an environment map as its colours change, so brass, gold and the marble floor reflect the sunset and the night. A warm side-lit key light and cool ambient light give depth. Clouds are rendered in the sky shader: drifting, lit by the sun, silver-lined and moonlit at night. On capable devices a post-processing chain adds MSAA anti-aliasing, god rays (sunbeams through palms and pillars at golden hour), cinematic depth of field on the close-ups, and bloom. Grass, palm fronds, bushes, flowers, garlands and the silk canopy all sway in one coherent GPU wind, and a fine film grain finishes the frame.
 
 **Performance:** the 3D code loads as a separate chunk. Quality tiers (high, medium, low) are picked from the device and control pixel ratio, post-processing, shadows, grass density and particle counts. If the frame rate drops, the scene steps its quality down by itself in three stages. Petals, stars, fireflies, grass and wind run entirely on the GPU, and textures (marble, silk, bark, monogram, clouds, butterflies) are drawn procedurally, so there's nothing extra to download. You can force a tier with `?quality=low|medium|high`.
 

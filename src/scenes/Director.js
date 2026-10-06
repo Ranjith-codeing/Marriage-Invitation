@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { keyframes, COLOR_KEYS } from './keyframes.js';
+import { buildKeyframes, COLOR_KEYS } from './keyframes.js';
 import { damp, smoothstep, clamp } from '../utils/math.js';
 
 const CAMERA_KEYS = ['az', 'h', 'dist', 'lookY', 'fov'];
@@ -18,8 +18,9 @@ const NUMBER_KEYS = [
  * at each beat — and values never overshoot (no camera dipping into scenery).
  */
 export class Director {
-  constructor(timeline) {
+  constructor(timeline, keyframes = buildKeyframes()) {
     this.timeline = timeline;
+    this.source = keyframes;
     this.target = this.blank();
     this.state = this.blank();
     this.resolve();
@@ -35,7 +36,7 @@ export class Director {
 
   /** Map keyframes onto film time; keyframes for missing sections are skipped. */
   resolve() {
-    this.keys = keyframes
+    this.keys = this.source
       .map((k) => {
         const i = this.timeline.indexOf(k.at);
         if (i < 0) return null;
@@ -116,6 +117,12 @@ export class Director {
     for (const k of NUMBER_KEYS) s[k] += (g[k] - s[k]) * (CAMERA_KEYS.includes(k) ? camK : envK);
     for (const k of COLOR_KEYS) s[k].lerp(g[k], envK);
     return s;
+  }
+
+  /** Switch to another scenario's keyframes (e.g. garden ↔ beach). */
+  setKeyframes(keyframes) {
+    this.source = keyframes;
+    this.resolve();
   }
 
   /** Jump straight to the target (used on first frame and after resize). */

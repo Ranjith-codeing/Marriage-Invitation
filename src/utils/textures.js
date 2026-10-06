@@ -381,3 +381,48 @@ export function barkTexture() {
   }
   return finish(c, { repeat: [10, 1] });
 }
+
+/** Fine sand: warm base with grain and faint ripples. */
+export function sandTexture() {
+  const [c, g] = canvas(256);
+  const rand = seededRandom(41);
+  g.fillStyle = '#e2cba6';
+  g.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 9000; i++) {
+    const l = 62 + rand() * 26;
+    g.fillStyle = `hsla(${34 + rand() * 10}, ${28 + rand() * 18}%, ${l}%, ${0.25 + rand() * 0.4})`;
+    g.fillRect(rand() * 256, rand() * 256, 1 + rand() * 1.5, 1 + rand() * 1.5);
+  }
+  g.strokeStyle = 'rgba(150,120,85,0.08)';
+  g.lineWidth = 2;
+  for (let y = 8; y < 256; y += 16) {
+    g.beginPath();
+    for (let x = 0; x <= 256; x += 8) g.lineTo(x, y + Math.sin(x * 0.07 + y) * 3);
+    g.stroke();
+  }
+  return finish(c, { repeat: [60, 60] });
+}
+
+/** Weathered teak planks for the boardwalk and pavilion deck. */
+export function plankTexture() {
+  const [c, g] = canvas(256);
+  const rand = seededRandom(57);
+  const boards = 8;
+  for (let i = 0; i < boards; i++) {
+    const y = (i / boards) * 256;
+    g.fillStyle = `hsl(${26 + rand() * 6}, ${38 + rand() * 12}%, ${40 + rand() * 10}%)`;
+    g.fillRect(0, y, 256, 256 / boards);
+    for (let k = 0; k < 40; k++) {
+      g.strokeStyle = `rgba(60,35,20,${0.05 + rand() * 0.08})`;
+      g.lineWidth = 0.5 + rand();
+      g.beginPath();
+      const yy = y + rand() * (256 / boards);
+      g.moveTo(0, yy);
+      g.bezierCurveTo(85, yy + (rand() - 0.5) * 4, 170, yy + (rand() - 0.5) * 4, 256, yy + (rand() - 0.5) * 3);
+      g.stroke();
+    }
+    g.fillStyle = 'rgba(40,22,12,0.55)';
+    g.fillRect(0, y, 256, 2);
+  }
+  return finish(c, {});
+}

@@ -22,7 +22,7 @@ function frondGeometry() {
 /**
  * Coconut palms: curved, tapered, ring-barked trunks (merged into one mesh),
  * wind-swept fronds and coconut clusters (instanced).
- * @param {{x:number, z:number, h:number, lean:number, leanZ?:number}[]} specs
+ * @param {{x:number, z:number, h:number, lean:number, leanZ?:number, y?:number}[]} specs
  */
 export function createPalms(specs, { seed = 5 } = {}) {
   const group = new THREE.Group();
@@ -43,9 +43,9 @@ export function createPalms(specs, { seed = 5 } = {}) {
       pos.setXYZ(k, t.x + (pos.getX(k) - t.x) * f, pos.getY(k), t.z + (pos.getZ(k) - t.z) * f);
     }
     geo.computeVertexNormals();
-    geo.translate(p.x, 0, p.z);
+    geo.translate(p.x, p.y || 0, p.z);
     shadows.push([p.x + tip.x * 0.6, p.z + tip.z * 0.6, 1.6]);
-    crowns.push(new THREE.Vector3(p.x + tip.x, p.h, p.z + tip.z));
+    crowns.push(new THREE.Vector3(p.x + tip.x, (p.y || 0) + p.h, p.z + tip.z));
     return geo;
   });
   const trunks = new THREE.Mesh(mergeGeometries(trunkGeos), new THREE.MeshStandardMaterial({ map: barkTexture(), roughness: 0.95 }));

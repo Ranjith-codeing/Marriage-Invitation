@@ -35,10 +35,13 @@ function blocked(x, z) {
 }
 
 /**
- * Wind-swept lawn: instanced blades in z-bands so whole bands behind the
- * camera are frustum-culled. Density is highest near the path.
+ * Wind-swept grass: instanced blades in z-bands so whole bands behind the
+ * camera are frustum-culled.
+ *   kind 'lawn' — green lawn, densest near the garden path
+ *   kind 'dune' — sparse straw-coloured sea oats on the beach dunes
+ * `heightAt(x, z)` places each blade on uneven ground.
  */
-export function createGrass({ count }) {
+export function createGrass({ count, kind = 'lawn', heightAt = () => 0 }) {
   const group = new THREE.Group();
   if (!count) return { group, update() {} };
 
@@ -54,11 +57,12 @@ export function createGrass({ count }) {
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), s = new THREE.Vector3(), p = new THREE.Vector3();
   const c = new THREE.Color();
   let placed = 0, guard = 0;
+  const dune = kind === 'dune';
   while (placed < count && guard++ < count * 4) {
     const side = rand() < 0.5 ? -1 : 1;
-    const x = side * (1.35 + Math.pow(rand(), 1.7) * 15);
-    const z = -10 + rand() * 60;
-    if (blocked(x, z)) continue;
+    const x = dune ? side * (5.5 + Math.pow(rand(), 0.8) * 16) : side * (1.35 + Math.pow(rand(), 1.7) * 15);
+    const z = dune ? -3 + rand() * 50 : -10 + rand() * 60;
+    if (dune ? Math.abs(x) < 6 && z < 3 : blocked(x, z)) continue;
     const band = bands[Math.min(bands.length - 1, Math.floor((z + 10) / 7.5))];
     band.items.push([x, z]);
     placed++;
@@ -68,12 +72,13 @@ export function createGrass({ count }) {
     if (!band.items.length) continue;
     const mesh = new THREE.InstancedMesh(geometry, material, band.items.length);
     band.items.forEach(([x, z], i) => {
-      const h = 0.18 + rand() * 0.32 + (Math.abs(x) > 6 ? rand() * 0.12 : 0);
-      p.set(x, 0, z);
+      const h = dune ? 0.35 + rand() * 0.45 : 0.18 + rand() * 0.32 + (Math.abs(x) > 6 ? rand() * 0.12 : 0);
+      p.set(x, heightAt(x, z) - 0.02, z);
       q.setFromEuler(e.set((rand() - 0.5) * 0.25, rand() * Math.PI * 2, (rand() - 0.5) * 0.25));
       m4.compose(p, q, s.set(0.8 + rand() * 0.6, h, 1));
       mesh.setMatrixAt(i, m4);
-      mesh.setColorAt(i, c.setHSL(0.2 + rand() * 0.07, 0.38 + rand() * 0.2, 0.36 + rand() * 0.14));
+      if (dune) mesh.setColorAt(i, c.setHSL(0.11 + rand() * 0.05, 0.35 + rand() * 0.2, 0.5 + rand() * 0.15));
+      else mesh.setColorAt(i, c.setHSL(0.2 + rand() * 0.07, 0.38 + rand() * 0.2, 0.36 + rand() * 0.14));
     });
     mesh.computeBoundingSphere();
     mesh.receiveShadow = true;
